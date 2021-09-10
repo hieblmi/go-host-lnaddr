@@ -9,3 +9,8 @@ Lighting Wallets like BlueWallet, Blixt and [many more](https://github.com/andre
 - Certbot to serve http over TLS. This is required since calls to the LNURLP are done via https. (example setup instructions [here](https://www.digitalocean.com/community/tutorials/how-to-secure-nginx-with-let-s-encrypt-on-ubuntu-18-04)
 
 ## Install and Setup
+
+- ```
+git clone https://github.com/hieblmi/go-host-lnaddr.git
+
+```
