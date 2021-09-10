@@ -1,5 +1,4 @@
 {
- "LNAddressServerPort": 9990,
  "RPCHost": "https://localhost:8080",
  "InvoiceMacaroon": "Generate the hex encoded invoice macaroon with this command: xxd -ps -u -c 1000  $HOME/.lnd/data/chain/bitcoin/mainnet/invoice.macaroon"
  "LightningAddress": "tips@allmysats.com",
