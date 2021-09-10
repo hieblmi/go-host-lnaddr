@@ -16,7 +16,8 @@ cd go-host-lnaddr && go build main.go
 ```
 ### Configuration config.json
 - "RPCHost": This is your lnd's REST/RPC host:port e.g. "https://localhost:8080"
-- "InvoiceMacaroon": Generate the hex encoded invoice macaroon : ```xxd -ps -u -c 1000  $HOME/.lnd/data/chain/bitcoin/mainnet/invoice.macaroon```
+- "InvoiceMacaroon": Generate the hex encoded invoice macaroon : 
+```xxd -ps -u -c 1000  $HOME/.lnd/data/chain/bitcoin/mainnet/invoice.macaroon```
 - "LightningAddress": Your preferred lightning address, mine is: tips@allmysats.com :-). This resolves to https://allmysats.com/.well-known/lnurlp/tips
 - "MinSendable": 1000,
 - "MaxSendable": 100000000,
@@ -29,5 +30,8 @@ cd go-host-lnaddr && go build main.go
 ### Run
 ```./main --config config.json```
 
-
+## Notes
+If you have questions please feel free to reach out to hieblmi@protonmail.com
+I just recently setup my own address this way so feel free to send me some sats if you think this has been helpful to you.
+Tips: ⚡ **tips@allmysats.com**
 
