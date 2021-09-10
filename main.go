@@ -14,7 +14,7 @@ import (
 	"time"
 )
 
-type Configuration struct {
+type Config struct {
 	RPCHost           string
 	InvoiceMacaroon   string
 	LightningAddress  string
@@ -56,23 +56,23 @@ func main() {
 	}
 	defer file.Close()
 
-	Config := Configuration{}
+	config := Config{}
 	decoder := json.NewDecoder(file)
-	err = decoder.Decode(&Config)
+	err = decoder.Decode(&config)
 	if err != nil {
 		log.Fatal("Cannot decode config JSON: ", err)
 	}
-	log.Printf("Printing config.json: %#v\n", Config)
+	log.Printf("Printing config.json: %#v\n", config)
 
-	lnurlp := fmt.Sprintf("/.well-known/lnurlp/%s", strings.Split(Config.LightningAddress, "@")[0])
+	lnurlp := fmt.Sprintf("/.well-known/lnurlp/%s", strings.Split(config.LightningAddress, "@")[0])
 
-	http.HandleFunc(string(lnurlp), handleLNUrlp(Config))
-	http.HandleFunc("/invoice/", handleInvoiceCreation(Config))
+	http.HandleFunc(string(lnurlp), handleLNUrlp(config))
+	http.HandleFunc("/invoice/", handleInvoiceCreation(config))
 
-	http.ListenAndServe(fmt.Sprintf(":%d", Config.AddressServerPort), nil)
+	http.ListenAndServe(fmt.Sprintf(":%d", config.AddressServerPort), nil)
 }
 
-func handleLNUrlp(config Configuration) http.HandlerFunc {
+func handleLNUrlp(config Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		log.Printf("LNUrlp request: %#v\n", *r)
 		resp := LNUrlPay{
@@ -89,10 +89,10 @@ func handleLNUrlp(config Configuration) http.HandlerFunc {
 	}
 }
 
-func handleInvoiceCreation(config Configuration) http.HandlerFunc {
+func handleInvoiceCreation(config Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		keys, hasAmount := r.URL.Query()["amount"]
+		keys, hasAmount := r.URL.Query().Get("amount")
 
 		if !hasAmount || len(keys[0]) < 1 {
 			err := Error{
@@ -126,7 +126,7 @@ func handleInvoiceCreation(config Configuration) http.HandlerFunc {
 			return
 		}
 
-		// create invoice
+		// parameters ok, creating invoice
 		backend := makeinvoice.LNDParams{
 			Host:     config.RPCHost,
 			Macaroon: config.InvoiceMacaroon,
