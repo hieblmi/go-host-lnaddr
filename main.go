@@ -92,7 +92,7 @@ func handleLNUrlp(config Config) http.HandlerFunc {
 func handleInvoiceCreation(config Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		keys, hasAmount := r.URL.Query().Get("amount")
+		keys, hasAmount := r.URL.Query()["amount"]
 
 		if !hasAmount || len(keys[0]) < 1 {
 			err := Error{
