@@ -31,7 +31,7 @@ cd go-host-lnaddr && go build main.go
 ```./main --config config.json```
 
 ## Notes
-If you have questions please feel free to reach out to hieblmi@protonmail.com
+This stuff is experimental. I appreciate your comments and if you have questions please feel free to reach out to hieblmi@protonmail.com.
 I just recently setup my own address this way so feel free to send me some sats if you think this has been helpful to you.
-Tips: ⚡ **tips@allmysats.com**
+ ⚡ **tips@allmysats.com**
 
