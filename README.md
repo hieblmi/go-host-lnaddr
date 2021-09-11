@@ -5,7 +5,7 @@ Lighting Wallets like BlueWallet, Blixt and [many more](https://github.com/andre
 - An existing Domain name and static ip address to express the lighting address(e.g. user@domain.com)
 - A public Lightning Network node with sufficient inbound liquidity to receive payments to your lightning address.
 - Golang [installation](https://golang.org/doc/install)
-- A Webserver and reverse proxy like Nginx or Caddy. (example setup instructions [here](https://www.digitalocean.com/community/tutorials/how-to-deploy-a-go-web-application-using-nginx-on-ubuntu-18-04)
+- A Webserver and reverse proxy like Nginx or Caddy. (example setup instructions [here](https://www.digitalocean.com/community/tutorials/how-to-deploy-a-go-web-application-using-nginx-on-ubuntu-18-04))
 - Certbot to serve http over TLS. This is required since calls to the LNURLP are done via https. (example setup instructions [here](https://www.digitalocean.com/community/tutorials/how-to-secure-nginx-with-let-s-encrypt-on-ubuntu-18-04)
 
 ## Install and Setup
@@ -29,6 +29,9 @@ cd go-host-lnaddr && go build main.go
 
 ### Run
 ```./main --config config.json```
+
+## TODO
+- [ ] Support images as metadata
 
 ## Notes
 This stuff is experimental. I appreciate your comments and if you have questions please feel free to reach out to hieblmi@protonmail.com.
