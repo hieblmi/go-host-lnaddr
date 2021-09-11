@@ -17,7 +17,7 @@ import (
 type Config struct {
 	RPCHost           string
 	InvoiceMacaroon   string
-	LightningAddress  string
+	LightningAddresses  []string
 	MinSendable       int
 	MaxSendable       int
 	CommentAllowed    int
@@ -63,13 +63,16 @@ func main() {
 		log.Fatal("Cannot decode config JSON: ", err)
 	}
 	log.Printf("Printing config.json: %#v\n", config)
-
-	lnurlp := fmt.Sprintf("/.well-known/lnurlp/%s", strings.Split(config.LightningAddress, "@")[0])
-
-	http.HandleFunc(string(lnurlp), handleLNUrlp(config))
+	
+	setupHandlerPerAddress(config) 
 	http.HandleFunc("/invoice/", handleInvoiceCreation(config))
-
 	http.ListenAndServe(fmt.Sprintf(":%d", config.AddressServerPort), nil)
+}
+
+func setupHandlerPerAddress(config Config) {
+	for _, addr := range config.LightningAddresses {
+		http.HandleFunc(fmt.Sprintf("/.well-known/lnurlp/%s", strings.Split(addr, "@")[0]), handleLNUrlp(config))
+	}
 }
 
 func handleLNUrlp(config Config) http.HandlerFunc {
