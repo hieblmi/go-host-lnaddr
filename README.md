@@ -32,7 +32,7 @@ cd go-host-lnaddr && go build main.go
 
 ## TODO
 - [ ] Support images as metadata
-- [ ] Host multiple receipients under the same domain
+- [x] Host multiple receipients under the same domain
 
 ## Notes
 This stuff is experimental. I appreciate your comments and if you have questions please feel free to reach out to hieblmi@protonmail.com.
