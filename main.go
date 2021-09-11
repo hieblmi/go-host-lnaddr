@@ -95,10 +95,7 @@ func handleInvoiceCreation(config Config) http.HandlerFunc {
 		keys, hasAmount := r.URL.Query()["amount"]
 
 		if !hasAmount || len(keys[0]) < 1 {
-			err := Error{
-				Status: "ERROR",
-				Reason: "URL Query parameter 'amount' is missing.",
-			}
+			err := getErrorResponse("Mandatory URL Query parameter 'amount' is missing.") 
 			w.WriteHeader(http.StatusBadRequest)
 			json.NewEncoder(w).Encode(err)
 			return
@@ -106,21 +103,14 @@ func handleInvoiceCreation(config Config) http.HandlerFunc {
 
 		msat, isInt := strconv.Atoi(keys[0])
 		if isInt != nil {
-			err := Error{
-				Status: "ERROR",
-				Reason: "Amount needs to be a number denoting the number of milli satoshis.",
-			}
+			err := getErrorResponse("Amount needs to be a number denoting the number of milli satoshis.") 
 			w.WriteHeader(http.StatusBadRequest)
 			json.NewEncoder(w).Encode(err)
 			return
 		}
 
 		if msat < config.MinSendable || msat > config.MaxSendable {
-			reason := fmt.Sprintf("Wrong amount. Amount needs to be in between [%d,%d] msat", config.MinSendable, config.MaxSendable)
-			err := Error{
-				Status: "ERROR",
-				Reason: reason,
-			}
+			err := getErrorResponse(fmt.Sprintf("Wrong amount. Amount needs to be in between [%d,%d] msat", config.MinSendable, config.MaxSendable))
 			w.WriteHeader(http.StatusBadRequest)
 			json.NewEncoder(w).Encode(err)
 			return
@@ -146,8 +136,10 @@ func handleInvoiceCreation(config Config) http.HandlerFunc {
 		bolt11, err := makeinvoice.MakeInvoice(params)
 		if err != nil {
 			log.Printf("Cannot create invoice: %s\n", err)
-		} else {
-			log.Printf("Invoice creation succeeded: %s\n", bolt11)
+			err := getErrorResponse("Invoice creation failed.")
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(err)
+			return
 		}
 
 		invoice := Invoice{
@@ -156,5 +148,12 @@ func handleInvoiceCreation(config Config) http.HandlerFunc {
 		}
 		w.WriteHeader(http.StatusCreated)
 		json.NewEncoder(w).Encode(invoice)
+	}
+}
+
+func getErrorResponse(reason string) (err Error) {
+	return Error{
+		Status: "Error",
+		Reason: reason,
 	}
 }
