@@ -1,7 +1,7 @@
 {
  "RPCHost": "https://localhost:8080",
  "InvoiceMacaroon": "Generate the hex encoded invoice macaroon with this command: xxd -ps -u -c 1000  $HOME/.lnd/data/chain/bitcoin/mainnet/invoice.macaroon",
- "LightningAddress": ["tips@allmysats.com"],
+ "LightningAddresses": ["tips@allmysats.com"],
  "MinSendable": 1000,
  "MaxSendable": 100000000,
  "CommentAllowed": 150,
