@@ -23,6 +23,7 @@ type Config struct {
 	CommentAllowed    int
 	Tag               string
 	Metadata          string
+	SuccessMessage    string
 	InvoiceCallback   string
 	AddressServerPort int
 }
@@ -40,11 +41,17 @@ type LNUrlPay struct {
 type Invoice struct {
 	Pr     string   `json:"pr"`
 	Routes []string `json:"routes"`
+	SuccessAction *SuccessAction `json:"successAction"`
 }
 
 type Error struct {
 	Status string `json:"status"`
 	Reason string `json:"reason"`
+}
+
+type SuccessAction struct {
+	Tag         string `json:"tag"`
+	Message     string `json:"message,omitempty"`
 }
 
 func main() {
@@ -148,6 +155,10 @@ func handleInvoiceCreation(config Config) http.HandlerFunc {
 		invoice := Invoice{
 			Pr:     bolt11,
 			Routes: make([]string, 0, 0),
+			SuccessAction:  &SuccessAction{
+							Tag:     "message",
+							Message: config.SuccessMessage,
+					},
 		}
 		w.WriteHeader(http.StatusCreated)
 		json.NewEncoder(w).Encode(invoice)
