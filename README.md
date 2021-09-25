@@ -1,5 +1,5 @@
 # ⚡🖥️👾 Host your own Lightning Address(currently on LND only)
-Lighting Wallets like BlueWallet, Blixt and [many more](https://github.com/andrerfneves/lightning-address/blob/master/README.md#wallets-supported) allow us to send sats to a [Lighting Addresses](https://lightningaddress.com) like tips@allmysats.com. We can hence pay without scanning the QR code of an invoice.
+Lighting Wallets like BlueWallet, Blixt and [many more](https://github.com/andrerfneves/lightning-address/blob/master/README.md#wallets-supported) allow us to send sats to [Lighting Addresses](https://lightningaddress.com) like tips@allmysats.com. We can hence pay without scanning the QR code of an invoice.
 
 ## Pre-requisites
 - An existing Domain name and static ip address to express the lighting address(e.g. user@domain.com)
