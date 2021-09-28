@@ -33,6 +33,8 @@ cd go-host-lnaddr && go build main.go
 ## TODO
 - [ ] Support images as metadata
 - [x] Host multiple receipients under the same domain
+- [ ] Config should provide paths to invoice.macaroon rather than the hexified macaroon itself
+- [ ] Dump this list into github issues lol
 
 ## Notes
 This stuff is experimental. I appreciate your comments and if you have questions please feel free to reach out to hieblmi@protonmail.com.
