@@ -16,7 +16,7 @@ go install github.com/hieblmi/go-host-lnaddr@latest
 ### Configuration config.json
 - "RPCHost": This is your lnd's REST/RPC host:port e.g. "https://localhost:8080"
 - "InvoiceMacaroonPath": "/path/to/invoice.macaroon"
-- "LightningAddress": Your preferred lightning address, mine is: tips@allmysats.com :-). This resolves to https://allmysats.com/.well-known/lnurlp/tips
+- "LightningAddress": Your preferred lightning address, mine is: heebs@allmysats.com :-). This resolves to https://allmysats.com/.well-known/lnurlp/tips
 - "MinSendable": 1000,
 - "MaxSendable": 100000000,
 - "CommentAllowed": If set to 0 the sender to your address can't add a comment otherwise the number stands for the permitted number of characters.
@@ -38,5 +38,5 @@ go install github.com/hieblmi/go-host-lnaddr@latest
 This stuff is experimental. I appreciate your comments and if you have questions please feel free to reach out to hieblmi@protonmail.com.
 I just recently setup my own address this way so feel free to send me some sats if you think this has been helpful to you.
 
-⚡ **tips@allmysats.com**
+⚡ **heebs@allmysats.com**
 
