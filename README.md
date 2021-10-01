@@ -28,12 +28,6 @@ go install github.com/hieblmi/go-host-lnaddr@latest
 ### Run
 ```./main --config config.json```
 
-## TODO
-- [ ] Support images as metadata
-- [x] Host multiple receipients under the same domain
-- [ ] Config should provide paths to invoice.macaroon rather than the hexified macaroon itself
-- [ ] Dump this list into github issues lol
-
 ## Notes
 This stuff is experimental. I appreciate your comments and if you have questions please feel free to reach out to hieblmi@protonmail.com.
 I just recently setup my own address this way so feel free to send me some sats if you think this has been helpful to you.
