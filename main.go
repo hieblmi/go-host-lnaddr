@@ -5,27 +5,29 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"github.com/fiatjaf/makeinvoice"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/fiatjaf/makeinvoice"
 )
 
 type Config struct {
-	RPCHost           string
-	InvoiceMacaroon   string
+	RPCHost             string
+	InvoiceMacaroonPath string
 	LightningAddresses  []string
-	MinSendable       int
-	MaxSendable       int
-	CommentAllowed    int
-	Tag               string
-	Metadata          string
-	SuccessMessage    string
-	InvoiceCallback   string
-	AddressServerPort int
+	MinSendable         int
+	MaxSendable         int
+	CommentAllowed      int
+	Tag                 string
+	Metadata            string
+	SuccessMessage      string
+	InvoiceCallback     string
+	AddressServerPort   int
 }
 
 type LNUrlPay struct {
@@ -39,8 +41,8 @@ type LNUrlPay struct {
 }
 
 type Invoice struct {
-	Pr     string   `json:"pr"`
-	Routes []string `json:"routes"`
+	Pr            string         `json:"pr"`
+	Routes        []string       `json:"routes"`
 	SuccessAction *SuccessAction `json:"successAction"`
 }
 
@@ -50,8 +52,8 @@ type Error struct {
 }
 
 type SuccessAction struct {
-	Tag         string `json:"tag"`
-	Message     string `json:"message,omitempty"`
+	Tag     string `json:"tag"`
+	Message string `json:"message,omitempty"`
 }
 
 func main() {
@@ -70,8 +72,8 @@ func main() {
 		log.Fatal("Cannot decode config JSON: ", err)
 	}
 	log.Printf("Printing config.json: %#v\n", config)
-	
-	setupHandlerPerAddress(config) 
+
+	setupHandlerPerAddress(config)
 	http.HandleFunc("/invoice/", handleInvoiceCreation(config))
 	http.ListenAndServe(fmt.Sprintf(":%d", config.AddressServerPort), nil)
 }
@@ -105,7 +107,7 @@ func handleInvoiceCreation(config Config) http.HandlerFunc {
 		keys, hasAmount := r.URL.Query()["amount"]
 
 		if !hasAmount || len(keys[0]) < 1 {
-			err := getErrorResponse("Mandatory URL Query parameter 'amount' is missing.") 
+			err := getErrorResponse("Mandatory URL Query parameter 'amount' is missing.")
 			w.WriteHeader(http.StatusBadRequest)
 			json.NewEncoder(w).Encode(err)
 			return
@@ -113,7 +115,7 @@ func handleInvoiceCreation(config Config) http.HandlerFunc {
 
 		msat, isInt := strconv.Atoi(keys[0])
 		if isInt != nil {
-			err := getErrorResponse("Amount needs to be a number denoting the number of milli satoshis.") 
+			err := getErrorResponse("Amount needs to be a number denoting the number of milli satoshis.")
 			w.WriteHeader(http.StatusBadRequest)
 			json.NewEncoder(w).Encode(err)
 			return
@@ -127,9 +129,14 @@ func handleInvoiceCreation(config Config) http.HandlerFunc {
 		}
 
 		// parameters ok, creating invoice
+		macaroonBytes, err := ioutil.ReadFile(config.InvoiceMacaroonPath)
+		if err != nil {
+			log.Fatal(fmt.Sprintf("Cannot read macaroon file %s", config.InvoiceMacaroonPath), err)
+		}
+
 		backend := makeinvoice.LNDParams{
 			Host:     config.RPCHost,
-			Macaroon: config.InvoiceMacaroon,
+			Macaroon: fmt.Sprintf("%X", macaroonBytes),
 		}
 
 		label := fmt.Sprintf("%s: %d sats", strconv.FormatInt(time.Now().Unix(), 16), msat)
@@ -155,10 +162,10 @@ func handleInvoiceCreation(config Config) http.HandlerFunc {
 		invoice := Invoice{
 			Pr:     bolt11,
 			Routes: make([]string, 0, 0),
-			SuccessAction:  &SuccessAction{
-							Tag:     "message",
-							Message: config.SuccessMessage,
-					},
+			SuccessAction: &SuccessAction{
+				Tag:     "message",
+				Message: config.SuccessMessage,
+			},
 		}
 		w.WriteHeader(http.StatusCreated)
 		json.NewEncoder(w).Encode(invoice)
