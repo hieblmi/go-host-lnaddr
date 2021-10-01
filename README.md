@@ -11,13 +11,11 @@ Lighting Wallets like BlueWallet, Blixt and [many more](https://github.com/andre
 ## Install and Setup
 ### Clone & Build
 ```
-git clone https://github.com/hieblmi/go-host-lnaddr.git
-cd go-host-lnaddr && go build main.go
+go install github.com/hieblmi/go-host-lnaddr@latest
 ```
 ### Configuration config.json
 - "RPCHost": This is your lnd's REST/RPC host:port e.g. "https://localhost:8080"
-- "InvoiceMacaroon": Generate the hex encoded invoice macaroon : 
-```xxd -ps -u -c 1000  $HOME/.lnd/data/chain/bitcoin/mainnet/invoice.macaroon```
+- "InvoiceMacaroonPath": "/path/to/invoice.macaroon"
 - "LightningAddress": Your preferred lightning address, mine is: tips@allmysats.com :-). This resolves to https://allmysats.com/.well-known/lnurlp/tips
 - "MinSendable": 1000,
 - "MaxSendable": 100000000,
