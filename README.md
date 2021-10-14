@@ -14,7 +14,7 @@ Lighting Wallets like BlueWallet, Blixt and [many more](https://github.com/andre
 go install github.com/hieblmi/go-host-lnaddr@latest
 ```
 ### Configuration config.json
-- "RPCHost": This is your lnd's REST/RPC host:port e.g. "https://localhost:8080"
+- "RPCHost": This is your lnd's REST host:port e.g. "https://localhost:8080"
 - "InvoiceMacaroonPath": "/path/to/invoice.macaroon"
 - "LightningAddress": Your preferred lightning address, mine is: heebs@allmysats.com :-). This resolves to https://allmysats.com/.well-known/lnurlp/tips
 - "MinSendable": 1000,
