@@ -12,8 +12,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
-	"github.com/fiatjaf/makeinvoice"
 )
 
 type Config struct {
@@ -28,6 +26,7 @@ type Config struct {
 	SuccessMessage      string
 	InvoiceCallback     string
 	AddressServerPort   int
+	Notificators        []notificatorConfig
 }
 
 type LNUrlPay struct {
@@ -56,6 +55,11 @@ type SuccessAction struct {
 	Message string `json:"message,omitempty"`
 }
 
+var (
+	sh      SettlementHandler
+	backend LNDParams
+)
+
 func main() {
 	c := flag.String("config", "./config.json", "Specify the configuration file")
 	flag.Parse()
@@ -74,6 +78,22 @@ func main() {
 	log.Printf("Printing config.json: %#v\n", config)
 
 	setupHandlerPerAddress(config)
+	macaroonBytes, err := ioutil.ReadFile(config.InvoiceMacaroonPath)
+	if err != nil {
+		log.Fatal(fmt.Sprintf("Cannot read macaroon file %s", config.InvoiceMacaroonPath), err)
+	}
+
+	backend = LNDParams{
+		Host:     config.RPCHost,
+		Macaroon: fmt.Sprintf("%X", macaroonBytes),
+	}
+
+	err = sh.setupSettlementHandler(backend)
+	if err == nil {
+		setupNotificators(config)
+	} else {
+		log.Printf("Settlement handler was not initialized, notifications disabled: %s", err)
+	}
 	http.HandleFunc("/invoice/", handleInvoiceCreation(config))
 	http.ListenAndServe(fmt.Sprintf(":%d", config.AddressServerPort), nil)
 }
@@ -129,18 +149,8 @@ func handleInvoiceCreation(config Config) http.HandlerFunc {
 		}
 
 		// parameters ok, creating invoice
-		macaroonBytes, err := ioutil.ReadFile(config.InvoiceMacaroonPath)
-		if err != nil {
-			log.Fatal(fmt.Sprintf("Cannot read macaroon file %s", config.InvoiceMacaroonPath), err)
-		}
-
-		backend := makeinvoice.LNDParams{
-			Host:     config.RPCHost,
-			Macaroon: fmt.Sprintf("%X", macaroonBytes),
-		}
-
 		label := fmt.Sprintf("%s: %d sats", strconv.FormatInt(time.Now().Unix(), 16), msat)
-		params := makeinvoice.Params{
+		params := Params{
 			Msatoshi:    int64(msat),
 			Backend:     backend,
 			Label:       label,
@@ -150,7 +160,8 @@ func handleInvoiceCreation(config Config) http.HandlerFunc {
 		h := sha256.Sum256([]byte(params.Description))
 		params.DescriptionHash = h[:]
 
-		bolt11, err := makeinvoice.MakeInvoice(params)
+		bolt11, r_hash, err := MakeInvoice(params)
+		log.Printf("Hash: %s", r_hash)
 		if err != nil {
 			log.Printf("Cannot create invoice: %s\n", err)
 			err := getErrorResponse("Invoice creation failed.")
@@ -161,12 +172,13 @@ func handleInvoiceCreation(config Config) http.HandlerFunc {
 
 		invoice := Invoice{
 			Pr:     bolt11,
-			Routes: make([]string, 0, 0),
+			Routes: make([]string, 0),
 			SuccessAction: &SuccessAction{
 				Tag:     "message",
 				Message: config.SuccessMessage,
 			},
 		}
+		sh.subscribeToInvoice(r_hash)
 		w.WriteHeader(http.StatusCreated)
 		json.NewEncoder(w).Encode(invoice)
 	}
