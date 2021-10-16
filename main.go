@@ -16,6 +16,7 @@ import (
 type Config struct {
 	RPCHost             string
 	InvoiceMacaroonPath string
+	TLSCertPath         string
 	LightningAddresses  []string
 	MinSendable         int
 	MaxSendable         int
@@ -26,6 +27,7 @@ type Config struct {
 	InvoiceCallback     string
 	AddressServerPort   int
 	Notificators        []notificatorConfig
+	Private             bool
 }
 
 type LNUrlPay struct {
@@ -79,12 +81,22 @@ func main() {
 	setupHandlerPerAddress(config)
 	macaroonBytes, err := ioutil.ReadFile(config.InvoiceMacaroonPath)
 	if err != nil {
-		log.Fatal(fmt.Sprintf("Cannot read macaroon file %s", config.InvoiceMacaroonPath), err)
+		log.Fatalf("Cannot read macaroon file %s: %s", config.InvoiceMacaroonPath, err)
 	}
 
 	backend = LNDParams{
 		Host:     config.RPCHost,
 		Macaroon: fmt.Sprintf("%X", macaroonBytes),
+	}
+
+	if config.TLSCertPath != "" {
+		tlsCert, err := ioutil.ReadFile(config.TLSCertPath)
+		if err != nil {
+			log.Fatalf("Cannot read TLS certificate file %s: %s", config.TLSCertPath, err)
+		}
+		backend.Cert = string(tlsCert)
+	} else {
+		log.Printf("WARNING: TLSCertPath isn't set, connection to lnd REST API is insecure!")
 	}
 
 	err = sh.setupSettlementHandler(backend)
@@ -126,32 +138,24 @@ func handleInvoiceCreation(config Config) http.HandlerFunc {
 		keys, hasAmount := r.URL.Query()["amount"]
 
 		if !hasAmount || len(keys[0]) < 1 {
-			err := getErrorResponse("Mandatory URL Query parameter 'amount' is missing.")
-			w.WriteHeader(http.StatusBadRequest)
-			json.NewEncoder(w).Encode(err)
+			badRequestError(w, "Mandatory URL Query parameter 'amount' is missing.")
 			return
 		}
 
 		msat, isInt := strconv.Atoi(keys[0])
 		if isInt != nil {
-			err := getErrorResponse("Amount needs to be a number denoting the number of milli satoshis.")
-			w.WriteHeader(http.StatusBadRequest)
-			json.NewEncoder(w).Encode(err)
+			badRequestError(w, "Amount needs to be a number denoting the number of milli satoshis.")
 			return
 		}
 
 		if msat < config.MinSendable || msat > config.MaxSendable {
-			err := getErrorResponse(fmt.Sprintf("Wrong amount. Amount needs to be in between [%d,%d] msat", config.MinSendable, config.MaxSendable))
-			w.WriteHeader(http.StatusBadRequest)
-			json.NewEncoder(w).Encode(err)
+			badRequestError(w, "Wrong amount. Amount needs to be in between [%d,%d] msat", config.MinSendable, config.MaxSendable)
 			return
 		}
 
 		comment := r.URL.Query().Get("comment")
 		if len(comment) > config.CommentAllowed {
-			err := getErrorResponse(fmt.Sprintf("Comment is too long, should be no longer than %d bytes", config.CommentAllowed))
-			w.WriteHeader(http.StatusBadRequest)
-			json.NewEncoder(w).Encode(err)
+			badRequestError(w, "Comment is too long, should be no longer than %d bytes", config.CommentAllowed)
 			return
 		}
 
@@ -165,12 +169,14 @@ func handleInvoiceCreation(config Config) http.HandlerFunc {
 		h := sha256.Sum256([]byte(params.Description))
 		params.DescriptionHash = h[:]
 
+		if config.Private {
+			params.Private = true
+		}
+
 		bolt11, r_hash, err := MakeInvoice(params)
 		if err != nil {
 			log.Printf("Cannot create invoice: %s\n", err)
-			err := getErrorResponse("Invoice creation failed.")
-			w.WriteHeader(http.StatusBadRequest)
-			json.NewEncoder(w).Encode(err)
+			badRequestError(w, "Invoice creation failed.")
 			return
 		}
 
@@ -188,9 +194,10 @@ func handleInvoiceCreation(config Config) http.HandlerFunc {
 	}
 }
 
-func getErrorResponse(reason string) (err Error) {
-	return Error{
+func badRequestError(w http.ResponseWriter, reason string, args ...interface{}) {
+	w.WriteHeader(http.StatusBadRequest)
+	json.NewEncoder(w).Encode(Error{
 		Status: "Error",
-		Reason: reason,
-	}
+		Reason: fmt.Sprintf(reason, args...),
+	})
 }

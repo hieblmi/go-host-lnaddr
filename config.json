@@ -1,6 +1,8 @@
 {
     "RPCHost": "https://localhost:8080",
     "InvoiceMacaroonPath": "/home/user/.lnd/data/chain/bitcoin/mainnet/invoices.macaroon",
+    "TLSCertPath": "/home/user/.lnd/tls.cert",
+    "Private": true,
     "LightningAddresses": [
         "tips@allmysats.com"
     ],

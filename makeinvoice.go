@@ -23,6 +23,7 @@ var TorProxyURL = "socks5://127.0.0.1:9050"
 type Params struct {
 	Backend         BackendParams
 	Msatoshi        int64
+	Private         bool
 	Description     string
 	DescriptionHash []byte
 }
@@ -34,7 +35,7 @@ type LNDParams struct {
 }
 
 func (l LNDParams) getCert() string { return l.Cert }
-func (l LNDParams) isTor() bool     { return strings.Index(l.Host, ".onion") != -1 }
+func (l LNDParams) isTor() bool     { return strings.Contains(l.Host, ".onion") }
 
 type BackendParams interface {
 	getCert() string
@@ -82,6 +83,10 @@ func MakeInvoice(params Params) (bolt11 string, r_hash string, err error) {
 			body, _ = sjson.Set(body, "memo", params.Description)
 		} else {
 			body, _ = sjson.Set(body, "description_hash", b64h)
+		}
+
+		if params.Private {
+			body, _ = sjson.Set(body, "private", true)
 		}
 
 		req, err := http.NewRequest("POST",
