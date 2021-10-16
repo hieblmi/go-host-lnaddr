@@ -49,7 +49,7 @@ func (sh *SettlementHandler) do(method string, url string) (*http.Response, erro
 	return resp, nil
 }
 
-func (sh *SettlementHandler) subscribeToInvoice(r_hash string) error {
+func (sh *SettlementHandler) subscribeToInvoice(r_hash string, comment string) error {
 	resp, err := sh.get("/v2/invoices/subscribe/" + strings.NewReplacer("+", "-", "/", "_").Replace(r_hash))
 	if err != nil {
 		log.Printf("Error subscribing to invoice: %s", err)
@@ -60,8 +60,8 @@ func (sh *SettlementHandler) subscribeToInvoice(r_hash string) error {
 		for dec.More() {
 			var invoice struct {
 				Result struct {
-					AmtPaidSat  string `json:"amt_paid_sat"`
-					Settled     bool
+					AmtPaidSat string `json:"amt_paid_sat"`
+					Settled    bool
 				}
 			}
 			dec.Decode(&invoice)
@@ -72,7 +72,7 @@ func (sh *SettlementHandler) subscribeToInvoice(r_hash string) error {
 				if err != nil {
 					log.Printf("Invalid amount %s.", invoice.Result.AmtPaidSat)
 				} else {
-					broadcastNotification(uint(amt))
+					broadcastNotification(uint(amt), comment)
 				}
 			}
 		}

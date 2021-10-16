@@ -11,7 +11,6 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"time"
 )
 
 type Config struct {
@@ -148,12 +147,18 @@ func handleInvoiceCreation(config Config) http.HandlerFunc {
 			return
 		}
 
+		comment := r.URL.Query().Get("comment")
+		if len(comment) > config.CommentAllowed {
+			err := getErrorResponse(fmt.Sprintf("Comment is too long, should be no longer than %d bytes", config.CommentAllowed))
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(err)
+			return
+		}
+
 		// parameters ok, creating invoice
-		label := fmt.Sprintf("%s: %d sats", strconv.FormatInt(time.Now().Unix(), 16), msat)
 		params := Params{
 			Msatoshi:    int64(msat),
 			Backend:     backend,
-			Label:       label,
 			Description: config.Metadata,
 		}
 
@@ -161,7 +166,6 @@ func handleInvoiceCreation(config Config) http.HandlerFunc {
 		params.DescriptionHash = h[:]
 
 		bolt11, r_hash, err := MakeInvoice(params)
-		log.Printf("Hash: %s", r_hash)
 		if err != nil {
 			log.Printf("Cannot create invoice: %s\n", err)
 			err := getErrorResponse("Invoice creation failed.")
@@ -178,7 +182,7 @@ func handleInvoiceCreation(config Config) http.HandlerFunc {
 				Message: config.SuccessMessage,
 			},
 		}
-		sh.subscribeToInvoice(r_hash)
+		sh.subscribeToInvoice(r_hash, comment)
 		w.WriteHeader(http.StatusCreated)
 		json.NewEncoder(w).Encode(invoice)
 	}

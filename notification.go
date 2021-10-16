@@ -9,7 +9,7 @@ type notificatorConfig struct {
 }
 
 type notificator interface {
-	Notify(amount uint) error
+	Notify(amount uint, comment string) error
 	Target() string
 }
 
@@ -26,9 +26,10 @@ func setupNotificators(cfg Config) {
 	}
 }
 
-func broadcastNotification(amount uint) {
+func broadcastNotification(amount uint, comment string) {
+	log.Printf("Received %d sats with comment: %s", amount, comment)
 	for _, n := range notificators {
-		err := n.Notify(amount)
+		err := n.Notify(amount, comment)
 		if err != nil {
 			log.Printf("Error sending notification to %s: %s", n.Target(), err)
 		}

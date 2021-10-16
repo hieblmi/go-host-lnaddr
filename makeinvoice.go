@@ -25,8 +25,6 @@ type Params struct {
 	Msatoshi        int64
 	Description     string
 	DescriptionHash []byte
-
-	Label string // only used for c-lightning
 }
 
 type LNDParams struct {
