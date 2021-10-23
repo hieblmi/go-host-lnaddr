@@ -3,13 +3,14 @@ package main
 import "log"
 
 type notificatorConfig struct {
-	Type   string
-	Target string
-	Params map[string]string
+	Type      string
+	Target    string
+	MinAmount uint64
+	Params    map[string]string
 }
 
 type notificator interface {
-	Notify(amount uint, comment string) error
+	Notify(amount uint64, comment string) error
 	Target() string
 }
 
@@ -26,12 +27,14 @@ func setupNotificators(cfg Config) {
 	}
 }
 
-func broadcastNotification(amount uint, comment string) {
+func broadcastNotification(amount uint64, comment string) {
 	log.Printf("Received %d sats with comment: %s", amount, comment)
 	for _, n := range notificators {
 		err := n.Notify(amount, comment)
 		if err != nil {
 			log.Printf("Error sending notification to %s: %s", n.Target(), err)
+		} else {
+			log.Printf("Notification sent to %s", n.Target())
 		}
 	}
 }

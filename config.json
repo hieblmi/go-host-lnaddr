@@ -18,6 +18,7 @@
         {
             "Type": "mail",
             "Target": "username@example.com",
+            "MinAmount": 1000,
             "Params": {
                 "From": "tips@allmysats.com",
                 "SmtpServer": "smtp.allmysats.com:587",

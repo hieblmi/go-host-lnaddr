@@ -7,11 +7,12 @@ import (
 )
 
 type mailNotificator struct {
-	To       string
-	From     string
-	Server   string
-	Login    string
-	Password string
+	To        string
+	From      string
+	Server    string
+	Login     string
+	Password  string
+	MinAmount uint64
 }
 
 var _ notificator = (*mailNotificator)(nil)
@@ -19,10 +20,13 @@ var _ notificator = (*mailNotificator)(nil)
 func NewMailNotificator(cfg notificatorConfig) *mailNotificator {
 	return &mailNotificator{To: cfg.Target, From: cfg.Params["From"],
 		Server: cfg.Params["SmtpServer"], Login: cfg.Params["Login"],
-		Password: cfg.Params["Password"]}
+		Password: cfg.Params["Password"], MinAmount: cfg.MinAmount}
 }
 
-func (m *mailNotificator) Notify(amount uint, comment string) (err error) {
+func (m *mailNotificator) Notify(amount uint64, comment string) (err error) {
+	if amount < m.MinAmount {
+		return fmt.Errorf("amount is too small, required %d got %d", m.MinAmount, amount)
+	}
 	var host string
 	host, _, err = net.SplitHostPort(m.Server)
 	if err != nil {

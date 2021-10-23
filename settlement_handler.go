@@ -72,7 +72,7 @@ func (sh *SettlementHandler) subscribeToInvoice(r_hash string, comment string) e
 				if err != nil {
 					log.Printf("Invalid amount %s.", invoice.Result.AmtPaidSat)
 				} else {
-					broadcastNotification(uint(amt), comment)
+					broadcastNotification(amt, comment)
 				}
 			}
 		}
