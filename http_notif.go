@@ -10,7 +10,7 @@ func NewHttpNotificator(cfg notificatorConfig) *httpNotificator {
 	return &httpNotificator{URL: cfg.Target}
 }
 
-func (h *httpNotificator) Notify(amount uint, comment string) error {
+func (h *httpNotificator) Notify(amount uint64, comment string) error {
 	return nil // currently not implemented
 }
 

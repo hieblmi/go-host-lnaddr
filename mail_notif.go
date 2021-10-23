@@ -22,7 +22,7 @@ func NewMailNotificator(cfg notificatorConfig) *mailNotificator {
 		Password: cfg.Params["Password"]}
 }
 
-func (m *mailNotificator) Notify(amount uint, comment string) (err error) {
+func (m *mailNotificator) Notify(amount uint64, comment string) (err error) {
 	var host string
 	host, _, err = net.SplitHostPort(m.Server)
 	if err != nil {
