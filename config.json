@@ -1,13 +1,29 @@
 {
- "RPCHost": "https://localhost:8080",
- "InvoiceMacaroon": "Generate the hex encoded invoice macaroon with this command: xxd -ps -u -c 1000  $HOME/.lnd/data/chain/bitcoin/mainnet/invoice.macaroon",
- "LightningAddresses": ["tips@allmysats.com"],
- "MinSendable": 1000,
- "MaxSendable": 100000000,
- "CommentAllowed": 150,
- "Tag": "payRequest",
- "Metadata": "[[\"text/plain\",\"Welcome to satsonlightning.com\"],[\"text/identifier\",\"tips@allmysats.com\"]]",
- "SuccessMessage": "Thank you!",
- "InvoiceCallback": "https://allmysats.com/invoice/",
- "AddressServerPort": 9990
+    "RPCHost": "https://localhost:8080",
+    "InvoiceMacaroonPath": "/home/user/.lnd/data/chain/bitcoin/mainnet/invoices.macaroon",
+    "TLSCertPath": "/home/user/.lnd/tls.cert",
+    "Private": true,
+    "LightningAddresses": [
+        "tips@allmysats.com"
+    ],
+    "MinSendable": 1000,
+    "MaxSendable": 100000000,
+    "CommentAllowed": 150,
+    "Tag": "payRequest",
+    "Metadata": "[[\"text/plain\",\"Welcome to satsonlightning.com\"],[\"text/identifier\",\"tips@allmysats.com\"]]",
+    "SuccessMessage": "Thank you!",
+    "InvoiceCallback": "https://allmysats.com/invoice/",
+    "AddressServerPort": 9990,
+    "Notificators": [
+        {
+            "Type": "mail",
+            "Target": "username@example.com",
+            "Params": {
+                "From": "tips@allmysats.com",
+                "SmtpServer": "smtp.allmysats.com:587",
+                "Login": "tips@allmysats.com",
+                "Password": "somerandompassword"
+            }
+        }
+    ]
 }
