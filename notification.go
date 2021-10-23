@@ -33,6 +33,8 @@ func broadcastNotification(amount uint64, comment string) {
 		err := n.Notify(amount, comment)
 		if err != nil {
 			log.Printf("Error sending notification to %s: %s", n.Target(), err)
+		} else {
+			log.Printf("Notification sent to %s", n.Target())
 		}
 	}
 }
