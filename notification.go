@@ -5,6 +5,7 @@ import "log"
 type notificatorConfig struct {
 	Type      string
 	Target    string
+	MinAmount uint64
 	Params    map[string]string
 }
 
