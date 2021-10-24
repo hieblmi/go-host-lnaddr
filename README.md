@@ -22,12 +22,12 @@ go install github.com/hieblmi/go-host-lnaddr@latest
 - `RPCHost`: Your lnd's REST endpoint e.g. "https://localhost:8080"
 - `InvoiceMacaroonPath`: "/path/to/invoice.macaroon"
 - `TLSCertPath`: "/home/user/.lnd/tls.cert",
-- `LightningAddresses`: [ Array of preferred lightning addresses hosted by the server. Mine is: heebs@allmysats.com :-). This resolves to https://allmysats.com/.well-known/lnurlp/tips ]
+- `LightningAddresses`: [ Array of preferred lightning addresses hosted by the server. Mine is: tips@allmysats.com :-). This resolves to https://allmysats.com/.well-known/lnurlp/tips ]
 - `MinSendable`: 1000,
 - `MaxSendable`: 100000000,
 - `CommentAllowed`: If set to 0 the sender can't add a comment otherwise the number stands for the permitted number of characters.
 - `Tag`: "payRequest",
-- `Metadata`: "[[\"text/plain\",\"Welcome to satsonlightning.com\"],[\"text/identifier\",\"tips@allmysats.com\"]]",
+- `Metadata`: "[[\"text/plain\",\"Welcome to allmysats.com\"],[\"text/identifier\",\"tips@allmysats.com\"]]",
 - `SuccessMessage`: "Thank you!",
 - `InvoiceCallback`: "https://[YOUR_DOMAIN].com/invoice/" - this is the endpoint that will create the invoice
 - `AddressServerPort`: 9990 - the port your reverse proxy points to
@@ -52,5 +52,5 @@ go install github.com/hieblmi/go-host-lnaddr@latest
 This stuff is experimental. I appreciate your comments and if you have questions please feel free to reach out to hieblmi@protonmail.com.
 I just recently setup my own address this way so feel free to send me some sats if you think this has been helpful to you.
 
-⚡ **heebs@allmysats.com**
+⚡ **tips@allmysats.com**
 
