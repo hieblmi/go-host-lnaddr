@@ -8,25 +8,45 @@ Lighting Wallets like BlueWallet, Blixt and [many more](https://github.com/andre
 - A Webserver and reverse proxy like Nginx or Caddy. (example setup instructions [here](https://www.digitalocean.com/community/tutorials/how-to-deploy-a-go-web-application-using-nginx-on-ubuntu-18-04))
 - Certbot to serve http over TLS. This is required since calls to the LNURLP are done via https. (example setup instructions [here](https://www.digitalocean.com/community/tutorials/how-to-secure-nginx-with-let-s-encrypt-on-ubuntu-18-04))
 
+## Features
+- Implements the LN address protocol to receive lightning payments to an email-like address.
+- Can host multiple lightning addresses on the same server instance.
+- Notification support for payment receipts. Currently there is only support for notifications via email but additonal notifcators are planned.
+
 ## Install and Setup
 ### Clone & Build
 ```
 go install github.com/hieblmi/go-host-lnaddr@latest
 ```
 ### Configuration config.json
-- "RPCHost": This is your lnd's REST host:port e.g. "https://localhost:8080"
-- "InvoiceMacaroonPath": "/path/to/invoice.macaroon"
-- "LightningAddress": Your preferred lightning address, mine is: heebs@allmysats.com :-). This resolves to https://allmysats.com/.well-known/lnurlp/tips
-- "MinSendable": 1000,
-- "MaxSendable": 100000000,
-- "CommentAllowed": If set to 0 the sender to your address can't add a comment otherwise the number stands for the permitted number of characters.
-- "Tag": "payRequest",
-- "Metadata": "[[\"text/plain\",\"Welcome to satsonlightning.com\"],[\"text/identifier\",\"tips@allmysats.com\"]]",
-- "InvoiceCallback": "https://[YOUR_DOMAIN].com/invoice/" - this is the endpoint that will create the invoice
-- "AddressServerPort": 9990 - the port your reverse proxy points to
+- `RPCHost`: Your lnd's REST endpoint e.g. "https://localhost:8080"
+- `InvoiceMacaroonPath`: "/path/to/invoice.macaroon"
+- `TLSCertPath`: "/home/user/.lnd/tls.cert",
+- `LightningAddresses`: [ Array of preferred lightning addresses hosted by the server. Mine is: heebs@allmysats.com :-). This resolves to https://allmysats.com/.well-known/lnurlp/tips ]
+- `MinSendable`: 1000,
+- `MaxSendable`: 100000000,
+- `CommentAllowed`: If set to 0 the sender can't add a comment otherwise the number stands for the permitted number of characters.
+- `Tag`: `payRequest`,
+- `Metadata`: "[[\"text/plain\",\"Welcome to satsonlightning.com\"],[\"text/identifier\",\"tips@allmysats.com\"]]",
+- `SuccessMessage`: "Thank you!",
+- `InvoiceCallback`: "https://[YOUR_DOMAIN].com/invoice/" - this is the endpoint that will create the invoice
+- `AddressServerPort`: 9990 - the port your reverse proxy points to
+- `Notificators`: [
+        {
+            "Type": "mail",
+            "Target": "username@example.com",
+            "MinAmount": 1000,
+            "Params": {
+                "From": "tips@allmysats.com",
+                "SmtpServer": "smtp.allmysats.com:587",
+                "Login": "tips@allmysats.com",
+                "Password": "somerandompassword"
+            }
+        }
+    ]
 
 ### Run
-```./main --config config.json```
+```$GOBIN/go-host-lnaddr --config /path/to/config.json```
 
 ## Notes
 This stuff is experimental. I appreciate your comments and if you have questions please feel free to reach out to hieblmi@protonmail.com.
