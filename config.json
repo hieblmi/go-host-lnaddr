@@ -10,7 +10,7 @@
     "MaxSendable": 100000000,
     "CommentAllowed": 150,
     "Tag": "payRequest",
-    "Metadata": "[[\"text/plain\",\"Welcome to satsonlightning.com\"],[\"text/identifier\",\"tips@allmysats.com\"]]",
+    "Metadata": "[[\"text/plain\",\"Welcome to allmysats.com\"],[\"text/identifier\",\"tips@allmysats.com\"]]",
     "SuccessMessage": "Thank you!",
     "InvoiceCallback": "https://allmysats.com/invoice/",
     "AddressServerPort": 9990,
