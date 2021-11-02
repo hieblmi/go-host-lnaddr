@@ -2,7 +2,9 @@ package main
 
 import (
 	"crypto/sha256"
+	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"io/ioutil"
@@ -17,17 +19,18 @@ type Config struct {
 	RPCHost             string
 	InvoiceMacaroonPath string
 	TLSCertPath         string
+	Private             bool
 	LightningAddresses  []string
 	MinSendable         int
 	MaxSendable         int
 	CommentAllowed      int
 	Tag                 string
-	Metadata            string
+	Metadata            [][]string
+	Thumbnail           string
 	SuccessMessage      string
 	InvoiceCallback     string
 	AddressServerPort   int
 	Notificators        []notificatorConfig
-	Private             bool
 }
 
 type LNUrlPay struct {
@@ -57,8 +60,9 @@ type SuccessAction struct {
 }
 
 var (
-	sh      SettlementHandler
-	backend LNDParams
+	sh       SettlementHandler
+	backend  LNDParams
+	metadata string
 )
 
 func main() {
@@ -77,6 +81,18 @@ func main() {
 		log.Fatal("Cannot decode config JSON: ", err)
 	}
 	log.Printf("Printing config.json: %#v\n", config)
+
+	md, err := metadataToString(config)
+	if err != nil {
+		log.Printf("WARNING: Unable to convert metadata to string: %s\n", err)
+	} else {
+		metadata = md
+	}
+
+	if err != nil {
+		log.Printf("WARNING: Could not convert metadata to string %s\n", err)
+	}
+	log.Printf("Metadata %s\n", metadata)
 
 	setupHandlerPerAddress(config)
 	macaroonBytes, err := ioutil.ReadFile(config.InvoiceMacaroonPath)
@@ -123,7 +139,7 @@ func handleLNUrlp(config Config) http.HandlerFunc {
 			MaxSendable:    config.MaxSendable,
 			CommentAllowed: config.CommentAllowed,
 			Tag:            config.Tag,
-			Metadata:       config.Metadata,
+			Metadata:       metadata,
 			Callback:       config.InvoiceCallback,
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -163,10 +179,11 @@ func handleInvoiceCreation(config Config) http.HandlerFunc {
 		params := Params{
 			Msatoshi:    int64(msat),
 			Backend:     backend,
-			Description: config.Metadata,
+			Description: metadata,
 		}
 
 		h := sha256.Sum256([]byte(params.Description))
+		fmt.Printf("DescriptionHash: %#v\n", h)
 		params.DescriptionHash = h[:]
 
 		if config.Private {
@@ -192,6 +209,44 @@ func handleInvoiceCreation(config Config) http.HandlerFunc {
 		w.WriteHeader(http.StatusCreated)
 		json.NewEncoder(w).Encode(invoice)
 	}
+}
+
+func metadataToString(config Config) (string, error) {
+
+	thumbnailMetadata, err := thumbnailToMetadata(config.Thumbnail)
+
+	if thumbnailMetadata != nil {
+		config.Metadata = append(config.Metadata, thumbnailMetadata)
+	}
+
+	marshalledMetadata, err := json.Marshal(config.Metadata)
+
+	return string(marshalledMetadata), err
+
+}
+
+func thumbnailToMetadata(thumbnailPath string) ([]string, error) {
+
+	bytes, err := ioutil.ReadFile(thumbnailPath)
+	if err != nil {
+		return nil, err
+	}
+
+	encoding := http.DetectContentType(bytes)
+	switch encoding {
+	case "image/jpeg":
+		encoding = "image/jpeg;base64"
+	case "image/png":
+		encoding = "image/png;base64"
+	default:
+		return nil, errors.New(fmt.Sprintf("Could not determine encoding of thumbnail %s.\n", thumbnailPath))
+	}
+
+	encodedThumbnail := base64.StdEncoding.EncodeToString(bytes)
+
+	metadata := []string{encoding, encodedThumbnail}
+
+	return metadata, nil
 }
 
 func badRequestError(w http.ResponseWriter, reason string, args ...interface{}) {

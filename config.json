@@ -1,7 +1,7 @@
 {
     "RPCHost": "https://localhost:8080",
-    "InvoiceMacaroonPath": "/home/user/.lnd/data/chain/bitcoin/mainnet/invoices.macaroon",
-    "TLSCertPath": "/home/user/.lnd/tls.cert",
+    "InvoiceMacaroonPath": "/home/bob/.lnd/data/chain/bitcoin/mainnet/invoices.macaroon",
+    "TLSCertPath": "/home/bob/.lnd/tls.cert",
     "Private": true,
     "LightningAddresses": [
         "tips@allmysats.com"
@@ -10,7 +10,11 @@
     "MaxSendable": 100000000,
     "CommentAllowed": 150,
     "Tag": "payRequest",
-    "Metadata": "[[\"text/plain\",\"Welcome to allmysats.com\"],[\"text/identifier\",\"tips@allmysats.com\"]]",
+    "Metadata": [
+	    ["text/plain","Welcome to allmysats.com"],
+	    ["text/identifier","tips@allmysats.com"]
+    ],
+    "Thumbnail": "/path/to/thumbnail.[jpeg|png]",
     "SuccessMessage": "Thank you!",
     "InvoiceCallback": "https://allmysats.com/invoice/",
     "AddressServerPort": 9990,
