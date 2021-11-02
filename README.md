@@ -27,7 +27,8 @@ go install github.com/hieblmi/go-host-lnaddr@latest
 - `MaxSendable`: 100000000,
 - `CommentAllowed`: If set to 0 the sender can't add a comment otherwise the number stands for the permitted number of characters.
 - `Tag`: "payRequest",
-- `Metadata`: "[[\"text/plain\",\"Welcome to allmysats.com\"],[\"text/identifier\",\"tips@allmysats.com\"]]",
+- `Metadata`: [["text/plain","Welcome to allmysats.com"],["text/identifier","tips@allmysats.com"]],
+- `Thumbnail`: "/path/to/thumbnail.[jpeg|png]",
 - `SuccessMessage`: "Thank you!",
 - `InvoiceCallback`: "https://[YOUR_DOMAIN].com/invoice/" - this is the endpoint that will create the invoice
 - `AddressServerPort`: 9990 - the port your reverse proxy points to
