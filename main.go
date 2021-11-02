@@ -89,11 +89,6 @@ func main() {
 		metadata = md
 	}
 
-	if err != nil {
-		log.Printf("WARNING: Could not convert metadata to string %s\n", err)
-	}
-	log.Printf("Metadata %s\n", metadata)
-
 	setupHandlerPerAddress(config)
 	macaroonBytes, err := ioutil.ReadFile(config.InvoiceMacaroonPath)
 	if err != nil {
@@ -183,7 +178,6 @@ func handleInvoiceCreation(config Config) http.HandlerFunc {
 		}
 
 		h := sha256.Sum256([]byte(params.Description))
-		fmt.Printf("DescriptionHash: %#v\n", h)
 		params.DescriptionHash = h[:]
 
 		if config.Private {
