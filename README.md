@@ -11,11 +11,7 @@ Lighting Wallets like BlueWallet, Blixt and [many more](https://github.com/andre
 ## Features
 - Implements the LN address protocol to receive lightning payments to an email-like address.
 - Can host multiple lightning addresses on the same server instance.
-- Notification support for payment receipts
-        - via email 
-        - telegram
-        - http 
-        - more in the future.
+- Notification support for payment receipts via email, telegram, http and more to come.
 
 ## Install and Setup
 ### Clone & Build
