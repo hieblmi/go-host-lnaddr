@@ -18,7 +18,7 @@ type mailNotificator struct {
 var _ notificator = (*mailNotificator)(nil)
 
 func NewMailNotificator(cfg notificatorConfig) *mailNotificator {
-	return &mailNotificator{To: cfg.Target, From: cfg.Params["From"],
+	return &mailNotificator{To: cfg.Params["Target"], From: cfg.Params["From"],
 		Server: cfg.Params["SmtpServer"], Login: cfg.Params["Login"],
 		Password: cfg.Params["Password"], MinAmount: cfg.MinAmount}
 }

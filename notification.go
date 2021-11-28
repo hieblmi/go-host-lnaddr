@@ -4,7 +4,6 @@ import "log"
 
 type notificatorConfig struct {
 	Type      string
-	Target    string
 	MinAmount uint64
 	Params    map[string]string
 }
@@ -23,6 +22,8 @@ func setupNotificators(cfg Config) {
 			notificators = append(notificators, NewMailNotificator(c))
 		case "http":
 			notificators = append(notificators, NewHttpNotificator(c))
+		case "telegram":
+			notificators = append(notificators, NewTelegramNotificator(c))
 		}
 	}
 }
