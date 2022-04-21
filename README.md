@@ -50,7 +50,7 @@ go install github.com/hieblmi/go-host-lnaddr@latest
 ```$GOBIN/go-host-lnaddr --config /path/to/config.json```
 
 ## Notes
-This stuff is experimental. I appreciate your comments and if you have questions please feel free to reach out to hieblmi@protonmail.com.
+This stuff is experimental. I appreciate your comments and if you have questions please raise an issue.
 I just recently setup my own address this way so feel free to send me some sats if you think this has been helpful to you.
 
 ⚡ **tips@allmysats.com**
