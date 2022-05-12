@@ -32,7 +32,7 @@ func (m *mailNotificator) Notify(amount uint64, comment string) (err error) {
 	if err != nil {
 		return
 	}
-	auth := smtp.PlainAuth("go-host-lnaddr", m.Login, m.Password, host)
+	auth := smtp.PlainAuth("", m.Login, m.Password, host)
 	if comment != "" {
 		comment = fmt.Sprintf("Sender said: \"%s\"", comment)
 	}
