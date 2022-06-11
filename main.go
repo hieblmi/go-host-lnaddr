@@ -107,14 +107,14 @@ func main() {
 		}
 		backend.Cert = string(tlsCert)
 	} else {
-		log.Printf("WARNING: TLSCertPath isn't set, connection to lnd REST API is insecure!")
+		log.Printf("WARNING: TLSCertPath isn't set, connection to lnd REST API is insecure!\n")
 	}
 
 	err = sh.setupSettlementHandler(backend)
 	if err == nil {
 		setupNotificators(config)
 	} else {
-		log.Printf("Settlement handler was not initialized, notifications disabled: %s", err)
+		log.Printf("Settlement handler was not initialized, notifications disabled: %s\n", err)
 	}
 	http.HandleFunc("/invoice/", handleInvoiceCreation(config))
 	http.ListenAndServe(fmt.Sprintf(":%d", config.AddressServerPort), nil)
@@ -145,6 +145,7 @@ func handleLNUrlp(config Config) http.HandlerFunc {
 
 func handleInvoiceCreation(config Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		log.Printf("Handling invoice creation: %#v\n", *r)
 		w.Header().Set("Content-Type", "application/json")
 		keys, hasAmount := r.URL.Query()["amount"]
 
