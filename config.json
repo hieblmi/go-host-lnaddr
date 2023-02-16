@@ -24,6 +24,14 @@
 	"SuccessMessage": "Thank you!",
 	"InvoiceCallback": "https://allmysats.com/invoice/",
 	"AddressServerPort": 9990,
+	"Nostr": {
+		"names": {
+			"myNostrUsername": "npub1h....."
+		},
+		"relays": {
+			"b9b.....": ["wss://my.relay.com"]
+		}
+	},
 	"Notificators": [
 		{
 			"Type": "mail",
