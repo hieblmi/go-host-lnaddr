@@ -32,6 +32,7 @@ go install github.com/hieblmi/go-host-lnaddr@latest
 - `SuccessMessage`: "Thank you!",
 - `InvoiceCallback`: "https://[YOUR_DOMAIN].com/invoice/" - this is the endpoint that will create the invoice
 - `AddressServerPort`: 9990 - the port your reverse proxy points to
+- `Nostr`: `{ "names": {...}, "relays": {...} }` - See https://github.com/nostr-protocol/nips/blob/master/05.md#example for details.
 - `Notificators`: [
         {
             "Type": "mail",

@@ -30,6 +30,7 @@ type Config struct {
 	SuccessMessage      string
 	InvoiceCallback     string
 	AddressServerPort   int
+	Nostr               *NostrConfig
 	Notificators        []notificatorConfig
 }
 
@@ -57,6 +58,11 @@ type Error struct {
 type SuccessAction struct {
 	Tag     string `json:"tag"`
 	Message string `json:"message,omitempty"`
+}
+
+type NostrConfig struct {
+	Names  map[string]string   `json:"names"`
+	Relays map[string][]string `json:"relays"`
 }
 
 var (
@@ -94,6 +100,8 @@ func main() {
 	if err != nil {
 		log.Fatalf("Cannot read macaroon file %s: %s", config.InvoiceMacaroonPath, err)
 	}
+
+	setupNostrHandlers(config.Nostr)
 
 	backend = LNDParams{
 		Host:     config.RPCHost,
@@ -141,6 +149,23 @@ func handleLNUrlp(config Config) http.HandlerFunc {
 		w.WriteHeader(http.StatusCreated)
 		json.NewEncoder(w).Encode(resp)
 	}
+}
+
+func setupNostrHandlers(nostr *NostrConfig) {
+	if nostr == nil {
+		return
+	}
+
+	http.HandleFunc(
+		"/.well-known/nostr.json",
+		func(w http.ResponseWriter, r *http.Request) {
+			log.Printf("Nostr request: %#v\n", *r)
+			w.Header().Set("Content-Type", "application/json")
+			w.Header().Set("Access-Control-Allow-Origin", "*")
+			w.WriteHeader(http.StatusCreated)
+			json.NewEncoder(w).Encode(nostr)
+		},
+	)
 }
 
 func handleInvoiceCreation(config Config) http.HandlerFunc {
