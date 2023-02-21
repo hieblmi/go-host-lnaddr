@@ -12,6 +12,7 @@ Lighting Wallets like BlueWallet, Blixt and [many more](https://github.com/andre
 - Implements the LN address protocol to receive lightning payments to an email-like address.
 - Can host multiple lightning addresses on the same server instance.
 - Notification support for payment receipts via email, telegram, http and more to come.
+- Nostr NIP 05 style account verification, see https://github.com/nostr-protocol/nips/blob/master/05.md
 
 ## Install and Setup
 ### Clone & Build
