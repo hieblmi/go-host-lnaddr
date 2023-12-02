@@ -1,61 +1,31 @@
 package main
 
 import (
-	"crypto/tls"
-	"crypto/x509"
-	"encoding/json"
-	"log"
-	"net/http"
-	"strconv"
-	"strings"
+	"bytes"
+	"context"
+	"github.com/lightningnetwork/lnd/lnrpc"
 )
 
 type SettlementHandler struct {
-	hc       http.Client
-	host     string
-	macaroon string
+	lndClient lnrpc.LightningClient
 }
 
-func (sh *SettlementHandler) setupSettlementHandler(backend LNDParams) (err error) {
-	cfg := &tls.Config{}
-	if backend.Cert != "" {
-		caCertPool := x509.NewCertPool()
-		caCertPool.AppendCertsFromPEM([]byte(backend.Cert))
-		cfg.RootCAs = caCertPool
-	} else {
-		cfg.InsecureSkipVerify = true
+func NewSettlementHandler(
+	lndClient lnrpc.LightningClient) *SettlementHandler {
+
+	return &SettlementHandler{
+		lndClient: lndClient,
 	}
-	t := &http.Transport{TLSClientConfig: cfg}
-	sh.hc.Transport = t
-	sh.host = backend.Host
-	sh.macaroon = backend.Macaroon
-	return
 }
 
-func (sh *SettlementHandler) get(url string) (*http.Response, error) {
-	return sh.do("GET", url)
-}
-
-func (sh *SettlementHandler) do(method string, url string) (*http.Response, error) {
-	req, err := http.NewRequest(method, sh.host+url, nil)
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Add("Grpc-Metadata-macaroon", sh.macaroon)
-	resp, err := sh.hc.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	return resp, nil
-}
-
-func (sh *SettlementHandler) subscribeToInvoice(r_hash string, comment string) error {
+/*func (sh *SettlementHandler) subscribeToInvoice(r_hash string, comment string) error {
 	resp, err := sh.get("/v2/invoices/subscribe/" + strings.NewReplacer("+", "-", "/", "_").Replace(r_hash))
 	if err != nil {
-		log.Printf("Error subscribing to invoice: %s", err)
+		log.Infof("Error subscribing to invoice: %s", err)
 		return err
 	}
 	go func() {
+		defer resp.Body.Close()
 		dec := json.NewDecoder(resp.Body)
 		for dec.More() {
 			var invoice struct {
@@ -77,5 +47,37 @@ func (sh *SettlementHandler) subscribeToInvoice(r_hash string, comment string) e
 			}
 		}
 	}()
+	return nil
+}*/
+
+func (s *SettlementHandler) subscribeToInvoiceRpc(ctx context.Context,
+	rHash []byte, comment string) error {
+
+	stream, err := s.lndClient.SubscribeInvoices(
+		ctx, &lnrpc.InvoiceSubscription{},
+	)
+	if err != nil {
+		return err
+	}
+
+	go func() {
+		for {
+			invoice, err := stream.Recv()
+			if err != nil {
+				log.Warnf("invoice stream error")
+			}
+
+			if invoice.State != lnrpc.Invoice_SETTLED {
+				continue
+			}
+
+			if bytes.Equal(invoice.RHash, rHash) {
+				broadcastNotification(
+					uint64(invoice.AmtPaidSat), comment,
+				)
+			}
+		}
+	}()
+
 	return nil
 }

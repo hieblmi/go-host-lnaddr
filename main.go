@@ -1,29 +1,32 @@
 package main
 
 import (
-	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
-	"errors"
 	"flag"
 	"fmt"
+	"github.com/btcsuite/btclog"
+	"github.com/lightningnetwork/lnd/lnrpc"
+	"github.com/lightningnetwork/lnd/macaroons"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
+	"gopkg.in/macaroon.v2"
 	"io/ioutil"
-	"log"
+	default_log "log"
 	"net/http"
 	"os"
-	"strconv"
 	"strings"
 )
 
-type Config struct {
+type ServerConfig struct {
 	RPCHost             string
 	InvoiceMacaroonPath string
 	TLSCertPath         string
-	Private             bool
+	WorkingDir          string
 	LightningAddresses  []string
-	MinSendable         int
-	MaxSendable         int
-	CommentAllowed      int
+	MinSendableMsat     int
+	MaxSendableMsat     int
+	MaxCommentLength    int
 	Tag                 string
 	Metadata            [][]string
 	Thumbnail           string
@@ -60,87 +63,89 @@ type SuccessAction struct {
 	Message string `json:"message,omitempty"`
 }
 
+var (
+	log btclog.Logger
+)
+
 type NostrConfig struct {
 	Names  map[string]string   `json:"names"`
 	Relays map[string][]string `json:"relays"`
 }
 
-var (
-	sh       SettlementHandler
-	backend  LNDParams
-	metadata string
-)
-
 func main() {
-	c := flag.String("config", "./config.json", "Specify the configuration file")
+	c := flag.String(
+		"config", "./config.json", "Specify the configuration file",
+	)
 	flag.Parse()
 	file, err := os.Open(*c)
 	if err != nil {
-		log.Fatal("Cannot open config file: ", err)
+		default_log.Fatalf("cannot open config file %v", err)
 	}
 	defer file.Close()
 
-	config := Config{}
+	config := ServerConfig{}
 	decoder := json.NewDecoder(file)
 	err = decoder.Decode(&config)
 	if err != nil {
-		log.Fatal("Cannot decode config JSON: ", err)
+		default_log.Fatalf("cannot decode config JSON %v", err)
 	}
-	log.Printf("Printing config.json: %#v\n", config)
 
-	md, err := metadataToString(config)
+	workingDir := config.WorkingDir
+	log, err = GetLogger(workingDir, "LNADDR")
 	if err != nil {
-		log.Printf("WARNING: Unable to convert metadata to string: %s\n", err)
-	} else {
-		metadata = md
+		default_log.Fatalf("cannot get logger %v", err)
 	}
+
+	log.Infof("Starting lightning address server on port %v...",
+		config.AddressServerPort)
+
+	clientConn, err := getClientConn(
+		config.RPCHost, config.TLSCertPath, config.InvoiceMacaroonPath,
+	)
+	if err != nil {
+		log.Errorf("unable to get a lnd client connection")
+		return
+	}
+
+	lndClient := lnrpc.NewLightningClient(clientConn)
+	settlementHandler := NewSettlementHandler(lndClient)
+
+	invoiceManager := NewInvoiceManager(
+		&InvoiceManagerConfig{
+			LndClient:         lndClient,
+			SettlementHandler: settlementHandler,
+		},
+	)
 
 	setupHandlerPerAddress(config)
-	macaroonBytes, err := ioutil.ReadFile(config.InvoiceMacaroonPath)
-	if err != nil {
-		log.Fatalf("Cannot read macaroon file %s: %s", config.InvoiceMacaroonPath, err)
-	}
-
 	setupNostrHandlers(config.Nostr)
+	setupNotificators(config)
 
-	backend = LNDParams{
-		Host:     config.RPCHost,
-		Macaroon: fmt.Sprintf("%X", macaroonBytes),
-	}
-
-	if config.TLSCertPath != "" {
-		tlsCert, err := ioutil.ReadFile(config.TLSCertPath)
-		if err != nil {
-			log.Fatalf("Cannot read TLS certificate file %s: %s", config.TLSCertPath, err)
-		}
-		backend.Cert = string(tlsCert)
-	} else {
-		log.Printf("WARNING: TLSCertPath isn't set, connection to lnd REST API is insecure!\n")
-	}
-
-	err = sh.setupSettlementHandler(backend)
-	if err == nil {
-		setupNotificators(config)
-	} else {
-		log.Printf("Settlement handler was not initialized, notifications disabled: %s\n", err)
-	}
-	http.HandleFunc("/invoice/", handleInvoiceCreation(config))
+	http.HandleFunc("/invoice/", invoiceManager.handleInvoiceCreation(
+		config),
+	)
 	http.ListenAndServe(fmt.Sprintf(":%d", config.AddressServerPort), nil)
 }
 
-func setupHandlerPerAddress(config Config) {
+func setupHandlerPerAddress(config ServerConfig) {
+	metadata, err := metadataToString(config)
+	if err != nil {
+		return
+	}
 	for _, addr := range config.LightningAddresses {
-		http.HandleFunc(fmt.Sprintf("/.well-known/lnurlp/%s", strings.Split(addr, "@")[0]), handleLNUrlp(config))
+		addr := strings.Split(addr, "@")[0]
+		endpoint := fmt.Sprintf("/.well-known/lnurlp/%s", addr)
+		http.HandleFunc(endpoint, handleLNUrlp(config, metadata))
 	}
 }
 
-func handleLNUrlp(config Config) http.HandlerFunc {
+func handleLNUrlp(config ServerConfig, metadata string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("LNUrlp request: %#v\n", *r)
+		log.Infof("LNUrlp request: %v\n", *r)
 		resp := LNUrlPay{
-			MinSendable:    config.MinSendable,
-			MaxSendable:    config.MaxSendable,
-			CommentAllowed: config.CommentAllowed,
+			MinSendable:    config.MinSendableMsat,
+			MaxSendable:    config.MaxSendableMsat,
+			CommentAllowed: config.MaxCommentLength,
 			Tag:            config.Tag,
 			Metadata:       metadata,
 			Callback:       config.InvoiceCallback,
@@ -159,7 +164,7 @@ func setupNostrHandlers(nostr *NostrConfig) {
 	http.HandleFunc(
 		"/.well-known/nostr.json",
 		func(w http.ResponseWriter, r *http.Request) {
-			log.Printf("Nostr request: %#v\n", *r)
+			log.Infof("Nostr request: %#v\n", *r)
 			w.Header().Set("Content-Type", "application/json")
 			w.Header().Set("Access-Control-Allow-Origin", "*")
 			w.WriteHeader(http.StatusCreated)
@@ -168,70 +173,7 @@ func setupNostrHandlers(nostr *NostrConfig) {
 	)
 }
 
-func handleInvoiceCreation(config Config) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("Handling invoice creation: %#v\n", *r)
-		w.Header().Set("Content-Type", "application/json")
-		keys, hasAmount := r.URL.Query()["amount"]
-
-		if !hasAmount || len(keys[0]) < 1 {
-			badRequestError(w, "Mandatory URL Query parameter 'amount' is missing.")
-			return
-		}
-
-		msat, isInt := strconv.Atoi(keys[0])
-		if isInt != nil {
-			badRequestError(w, "Amount needs to be a number denoting the number of milli satoshis.")
-			return
-		}
-
-		if msat < config.MinSendable || msat > config.MaxSendable {
-			badRequestError(w, "Wrong amount. Amount needs to be in between [%d,%d] msat", config.MinSendable, config.MaxSendable)
-			return
-		}
-
-		comment := r.URL.Query().Get("comment")
-		if len(comment) > config.CommentAllowed {
-			badRequestError(w, "Comment is too long, should be no longer than %d bytes", config.CommentAllowed)
-			return
-		}
-
-		// parameters ok, creating invoice
-		params := Params{
-			Msatoshi:    int64(msat),
-			Backend:     backend,
-			Description: metadata,
-		}
-
-		h := sha256.Sum256([]byte(params.Description))
-		params.DescriptionHash = h[:]
-
-		if config.Private {
-			params.Private = true
-		}
-
-		bolt11, r_hash, err := MakeInvoice(params)
-		if err != nil {
-			log.Printf("Cannot create invoice: %s\n", err)
-			badRequestError(w, "Invoice creation failed.")
-			return
-		}
-
-		invoice := Invoice{
-			Pr:     bolt11,
-			Routes: make([]string, 0),
-			SuccessAction: &SuccessAction{
-				Tag:     "message",
-				Message: config.SuccessMessage,
-			},
-		}
-		sh.subscribeToInvoice(r_hash, comment)
-		w.WriteHeader(http.StatusCreated)
-		json.NewEncoder(w).Encode(invoice)
-	}
-}
-
-func metadataToString(config Config) (string, error) {
+func metadataToString(config ServerConfig) (string, error) {
 
 	thumbnailMetadata, err := thumbnailToMetadata(config.Thumbnail)
 
@@ -242,11 +184,9 @@ func metadataToString(config Config) (string, error) {
 	marshalledMetadata, err := json.Marshal(config.Metadata)
 
 	return string(marshalledMetadata), err
-
 }
 
 func thumbnailToMetadata(thumbnailPath string) ([]string, error) {
-
 	bytes, err := ioutil.ReadFile(thumbnailPath)
 	if err != nil {
 		return nil, err
@@ -259,20 +199,102 @@ func thumbnailToMetadata(thumbnailPath string) ([]string, error) {
 	case "image/png":
 		encoding = "image/png;base64"
 	default:
-		return nil, errors.New(fmt.Sprintf("Could not determine encoding of thumbnail %s.\n", thumbnailPath))
+		return nil, fmt.Errorf("Unsupported encodeing %s of "+
+			"thumbnail %s.\n", encoding, thumbnailPath)
 	}
-
 	encodedThumbnail := base64.StdEncoding.EncodeToString(bytes)
 
-	metadata := []string{encoding, encodedThumbnail}
-
-	return metadata, nil
+	return []string{encoding, encodedThumbnail}, nil
 }
 
-func badRequestError(w http.ResponseWriter, reason string, args ...interface{}) {
+func badRequestError(w http.ResponseWriter, reason string,
+	args ...interface{}) {
+
 	w.WriteHeader(http.StatusBadRequest)
 	json.NewEncoder(w).Encode(Error{
 		Status: "Error",
 		Reason: fmt.Sprintf(reason, args...),
 	})
+}
+
+// maxMsgRecvSize is the largest message our client will receive. We
+// set this to 200MiB atm.
+var (
+	maxMsgRecvSize        = grpc.MaxCallRecvMsgSize(1 * 1024 * 1024 * 200)
+	macaroonTimeout int64 = 60
+)
+
+func getClientConn(address, tlsCertPath, macaroonPath string) (*grpc.ClientConn,
+	error) {
+
+	// We always need to send a macaroon.
+	macOption, err := readMacaroon(macaroonPath)
+	if err != nil {
+		return nil, err
+	}
+
+	// TODO (hieblmi) Support Tor dialing
+	opts := []grpc.DialOption{
+		grpc.WithDefaultCallOptions(maxMsgRecvSize),
+		macOption,
+	}
+
+	// TLS cannot be disabled, we'll always have a cert file to read.
+	creds, err := credentials.NewClientTLSFromFile(tlsCertPath, "")
+	if err != nil {
+		return nil, err
+	}
+
+	opts = append(opts, grpc.WithTransportCredentials(creds))
+
+	conn, err := grpc.Dial(address, opts...)
+	if err != nil {
+		return nil, fmt.Errorf("unable to connect to RPC server: %v",
+			err)
+	}
+
+	return conn, nil
+}
+
+// readMacaroon tries to read the macaroon file at the specified path and create
+// gRPC dial options from it.
+func readMacaroon(macPath string) (grpc.DialOption, error) {
+	// Load the specified macaroon file.
+	macBytes, err := ioutil.ReadFile(macPath)
+	if err != nil {
+		return nil, fmt.Errorf("unable to read macaroon path : %v", err)
+	}
+
+	mac := &macaroon.Macaroon{}
+	if err = mac.UnmarshalBinary(macBytes); err != nil {
+		return nil, fmt.Errorf("unable to decode macaroon: %v", err)
+	}
+
+	macConstraints := []macaroons.Constraint{
+		// We add a time-based constraint to prevent replay of the
+		// macaroon. It's good for 60 seconds by default to make up for
+		// any discrepancy between client and server clocks, but leaking
+		// the macaroon before it becomes invalid makes it possible for
+		// an attacker to reuse the macaroon. In addition, the validity
+		// time of the macaroon is extended by the time the server clock
+		// is behind the client clock, or shortened by the time the
+		// server clock is ahead of the client clock (or invalid
+		// altogether if, in the latter case, this time is more than 60
+		// seconds).
+		macaroons.TimeoutConstraint(macaroonTimeout),
+	}
+
+	// Apply constraints to the macaroon.
+	constrainedMac, err := macaroons.AddConstraints(mac, macConstraints...)
+	if err != nil {
+		return nil, err
+	}
+
+	// Now we append the macaroon credentials to the dial options.
+	cred, err := macaroons.NewMacaroonCredential(constrainedMac)
+	if err != nil {
+		return nil, fmt.Errorf("error creating macaroon credential: %v",
+			err)
+	}
+	return grpc.WithPerRPCCredentials(cred), nil
 }
