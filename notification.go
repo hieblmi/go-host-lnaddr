@@ -1,7 +1,5 @@
 package main
 
-import "log"
-
 type notificatorConfig struct {
 	Type      string
 	MinAmount uint64
@@ -15,7 +13,7 @@ type notificator interface {
 
 var notificators []notificator
 
-func setupNotificators(cfg Config) {
+func setupNotificators(cfg ServerConfig) {
 	for _, c := range cfg.Notificators {
 		switch c.Type {
 		case "mail":
@@ -29,13 +27,14 @@ func setupNotificators(cfg Config) {
 }
 
 func broadcastNotification(amount uint64, comment string) {
-	log.Printf("Received %d sats with comment: %s", amount, comment)
+	log.Infof("Received %d sats with comment: %s", amount, comment)
 	for _, n := range notificators {
 		err := n.Notify(amount, comment)
 		if err != nil {
-			log.Printf("Error sending notification to %s: %s", n.Target(), err)
+			log.Infof("Error sending notification to %s: %s",
+				n.Target(), err)
 		} else {
-			log.Printf("Notification sent to %s", n.Target())
+			log.Infof("Notification sent to %s", n.Target())
 		}
 	}
 }

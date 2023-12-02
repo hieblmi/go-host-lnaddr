@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"strconv"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
@@ -18,8 +17,11 @@ var _ notificator = (*telegramNotificator)(nil)
 
 func NewTelegramNotificator(cfg notificatorConfig) *telegramNotificator {
 	chatId, _ := strconv.ParseInt(cfg.Params["ChatId"], 10, 64)
-	return &telegramNotificator{ChatId: chatId, Token: cfg.Params["Token"],
-		MinAmount: cfg.MinAmount}
+	return &telegramNotificator{
+		ChatId:    chatId,
+		Token:     cfg.Params["Token"],
+		MinAmount: cfg.MinAmount,
+	}
 }
 
 func (t *telegramNotificator) Notify(amount uint64, comment string) (err error) {
@@ -31,7 +33,7 @@ func (t *telegramNotificator) Notify(amount uint64, comment string) (err error) 
 	}
 	tgBot, err := tgbotapi.NewBotAPI(t.Token)
 	if err != nil {
-		log.Println("Couldn't create telegram bot api")
+		log.Warnf("Couldn't create telegram bot api")
 		return err
 	}
 	body := fmt.Sprintf("Subject: %s\n\nYou've received %d sats to your lightning address. %s",
