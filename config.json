@@ -1,5 +1,5 @@
 {
-	"RPCHost": "localhost:9735",
+	"RPCHost": "localhost:10009",
 	"InvoiceMacaroonPath": "/home/alice/.lnd/data/chain/bitcoin/mainnet/invoices.macaroon",
 	"TLSCertPath": "/home/alice/.lnd/tls.cert",
     "WorkingDir": "/home/alice/.go-host-lnaddr",,
