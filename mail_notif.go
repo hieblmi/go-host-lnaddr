@@ -36,7 +36,7 @@ func (m *mailNotificator) Notify(amount uint64, comment string) (err error) {
 	if comment != "" {
 		comment = fmt.Sprintf("Sender said: \"%s\"", comment)
 	}
-	body := fmt.Sprintf("Subject: %s\n\nYou've received %d sats to your lightning address. %s",
+	body := fmt.Sprintf("From: %s\nSubject: %s\n\nYou've received %d sats to your lightning address. %s", m.From,
 		"New lightning address payment", amount, comment)
 	err = smtp.SendMail(m.Server, auth, m.From, []string{m.To}, []byte(body))
 	return
