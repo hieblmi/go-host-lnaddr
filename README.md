@@ -28,7 +28,7 @@ go install github.com/hieblmi/go-host-lnaddr@latest
 - `MaxSendable`: 100000000,
 - `CommentAllowed`: If set to 0 the sender can't add a comment otherwise the number stands for the permitted number of characters.
 - `Tag`: "payRequest",
-- `Metadata`: [["text/plain","Welcome to allmysats.com"],["text/identifier","tips@allmysats.com"]],
+- `Metadata`: [["text/plain","Welcome to satswellspent.com"],["text/identifier","thats@satswellspent.com"]],
 - `Thumbnail`: "/path/to/thumbnail.[jpeg|png]",
 - `SuccessMessage`: "Thank you!",
 - `InvoiceCallback`: "https://[YOUR_DOMAIN].com/invoice/" - this is the endpoint that will create the invoice
@@ -40,9 +40,9 @@ go install github.com/hieblmi/go-host-lnaddr@latest
             "Target": "username@example.com",
             "MinAmount": 1000,
             "Params": {
-                "From": "tips@allmysats.com",
-                "SmtpServer": "smtp.allmysats.com:587",
-                "Login": "tips@allmysats.com",
+                "From": "thats@satswellspent.com",
+                "SmtpServer": "smtp.satswellspent.com:587",
+                "Login": "thats@satswellspent.com",
                 "Password": "somerandompassword"
             }
         }
@@ -55,5 +55,5 @@ go install github.com/hieblmi/go-host-lnaddr@latest
 This stuff is experimental. I appreciate your comments and if you have questions please raise an issue.
 I just recently setup my own address this way so feel free to send me some sats if you think this has been helpful to you.
 
-⚡ **tips@allmysats.com**
+⚡ **thats@satswellspent.com**
 
