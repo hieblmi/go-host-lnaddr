@@ -23,7 +23,7 @@ go install github.com/hieblmi/go-host-lnaddr@latest
 - `RPCHost`: Your lnd's REST endpoint e.g. "https://localhost:8080"
 - `InvoiceMacaroonPath`: "/path/to/invoice.macaroon"
 - `TLSCertPath`: "/home/user/.lnd/tls.cert",
-- `LightningAddresses`: [ Array of preferred lightning addresses hosted by the server. Mine is: tips@allmysats.com :-). This resolves to https://allmysats.com/.well-known/lnurlp/tips ]
+- `LightningAddresses`: [ Array of preferred lightning addresses hosted by the server. Mine is: thats@satswellspent.com :-). This resolves to https://satswellspent.com/.well-known/lnurlp/thats ]
 - `MinSendable`: 1000,
 - `MaxSendable`: 100000000,
 - `CommentAllowed`: If set to 0 the sender can't add a comment otherwise the number stands for the permitted number of characters.
