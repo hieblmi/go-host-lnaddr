@@ -151,6 +151,7 @@ func handleLNUrlp(config ServerConfig, metadata string) http.HandlerFunc {
 			Callback:       config.InvoiceCallback,
 		}
 		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.WriteHeader(http.StatusCreated)
 		json.NewEncoder(w).Encode(resp)
 	}
