@@ -44,7 +44,6 @@ type LNUrlPay struct {
 	Tag             string `json:"tag"`
 	Metadata        string `json:"metadata"`
 	Callback        string `json:"callback"`
-	DescriptionHash []byte
 }
 
 type Invoice struct {
