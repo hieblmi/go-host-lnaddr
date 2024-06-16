@@ -77,17 +77,14 @@ func main() {
 		"config", "./config.json", "Specify the configuration file",
 	)
 	flag.Parse()
-	file, err := os.Open(*c)
+
+	configBytes, err := os.ReadFile(*c)
 	if err != nil {
-		baselog.Fatalf("cannot open config file %v", err)
+		baselog.Fatalf("cannot read config file '%s': %v", *c, err)
 	}
-	defer func() {
-		_ = file.Close()
-	}()
 
 	config := ServerConfig{}
-	decoder := json.NewDecoder(file)
-	err = decoder.Decode(&config)
+	err = json.Unmarshal(configBytes, &config)
 	if err != nil {
 		baselog.Fatalf("cannot decode config JSON %v", err)
 	}
