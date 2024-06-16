@@ -171,7 +171,7 @@ func handleLNUrlp(config ServerConfig, metadata string) http.HandlerFunc {
 		}
 		w.Header().Set("Content-Type", "application/json")
 		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.WriteHeader(http.StatusCreated)
+		w.WriteHeader(http.StatusOK)
 		_ = json.NewEncoder(w).Encode(resp)
 	}
 }
@@ -187,7 +187,7 @@ func setupNostrHandlers(nostr *NostrConfig) {
 			log.Infof("Nostr request: %#v\n", *r)
 			w.Header().Set("Content-Type", "application/json")
 			w.Header().Set("Access-Control-Allow-Origin", "*")
-			w.WriteHeader(http.StatusCreated)
+			w.WriteHeader(http.StatusOK)
 			_ = json.NewEncoder(w).Encode(nostr)
 		}),
 	)
