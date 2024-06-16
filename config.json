@@ -9,7 +9,7 @@
 	],
 	"MinSendableMsat": 1000,
 	"MaxSendableMsat": 100000000,
-	"CommentAllowed": 150,
+	"MaxCommentLength": 150,
 	"Tag": "payRequest",
 	"Metadata": [
 		[
