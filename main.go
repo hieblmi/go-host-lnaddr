@@ -5,17 +5,18 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	baselog "log"
+	"net/http"
+	"os"
+	"strings"
+
+	"github.com/MadAppGang/httplog"
 	"github.com/btcsuite/btclog"
 	"github.com/lightningnetwork/lnd/lnrpc"
 	"github.com/lightningnetwork/lnd/macaroons"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"gopkg.in/macaroon.v2"
-	"io/ioutil"
-	default_log "log"
-	"net/http"
-	"os"
-	"strings"
 )
 
 type ServerConfig struct {
@@ -38,12 +39,12 @@ type ServerConfig struct {
 }
 
 type LNUrlPay struct {
-	MinSendable     int    `json:"minSendable"`
-	MaxSendable     int    `json:"maxSendable"`
-	CommentAllowed  int    `json:"commentAllowed"`
-	Tag             string `json:"tag"`
-	Metadata        string `json:"metadata"`
-	Callback        string `json:"callback"`
+	MinSendable    int    `json:"minSendable"`
+	MaxSendable    int    `json:"maxSendable"`
+	CommentAllowed int    `json:"commentAllowed"`
+	Tag            string `json:"tag"`
+	Metadata       string `json:"metadata"`
+	Callback       string `json:"callback"`
 }
 
 type Invoice struct {
@@ -78,21 +79,23 @@ func main() {
 	flag.Parse()
 	file, err := os.Open(*c)
 	if err != nil {
-		default_log.Fatalf("cannot open config file %v", err)
+		baselog.Fatalf("cannot open config file %v", err)
 	}
-	defer file.Close()
+	defer func() {
+		_ = file.Close()
+	}()
 
 	config := ServerConfig{}
 	decoder := json.NewDecoder(file)
 	err = decoder.Decode(&config)
 	if err != nil {
-		default_log.Fatalf("cannot decode config JSON %v", err)
+		baselog.Fatalf("cannot decode config JSON %v", err)
 	}
 
 	workingDir := config.WorkingDir
 	log, err = GetLogger(workingDir, "LNADDR")
 	if err != nil {
-		default_log.Fatalf("cannot get logger %v", err)
+		baselog.Fatalf("cannot get logger %v", err)
 	}
 
 	log.Infof("Starting lightning address server on port %v...",
@@ -120,10 +123,29 @@ func main() {
 	setupNostrHandlers(config.Nostr)
 	setupNotificators(config)
 
-	http.HandleFunc("/invoice/", invoiceManager.handleInvoiceCreation(
-		config),
+	http.HandleFunc("/invoice/", useLogger(
+		invoiceManager.handleInvoiceCreation(config),
+	))
+	err = http.ListenAndServe(
+		fmt.Sprintf(":%d", config.AddressServerPort), nil,
 	)
-	http.ListenAndServe(fmt.Sprintf(":%d", config.AddressServerPort), nil)
+	if err != nil {
+		log.Errorf("unable to start server: %v", err)
+	}
+}
+
+func useLogger(h http.HandlerFunc) http.HandlerFunc {
+	logger := httplog.LoggerWithConfig(httplog.LoggerConfig{
+		Formatter: httplog.ChainLogFormatter(
+			httplog.DefaultLogFormatter,
+			httplog.RequestHeaderLogFormatter,
+			httplog.RequestBodyLogFormatter,
+			httplog.ResponseHeaderLogFormatter,
+			httplog.ResponseBodyLogFormatter,
+		),
+		CaptureBody: true,
+	})
+	return logger(h).ServeHTTP
 }
 
 func setupHandlerPerAddress(config ServerConfig) {
@@ -134,13 +156,14 @@ func setupHandlerPerAddress(config ServerConfig) {
 	for _, addr := range config.LightningAddresses {
 		addr := strings.Split(addr, "@")[0]
 		endpoint := fmt.Sprintf("/.well-known/lnurlp/%s", addr)
-		http.HandleFunc(endpoint, handleLNUrlp(config, metadata))
+		http.HandleFunc(
+			endpoint, useLogger(handleLNUrlp(config, metadata)),
+		)
 	}
 }
 
 func handleLNUrlp(config ServerConfig, metadata string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		log.Infof("LNUrlp request: %v\n", *r)
 		resp := LNUrlPay{
 			MinSendable:    config.MinSendableMsat,
 			MaxSendable:    config.MaxSendableMsat,
@@ -152,7 +175,7 @@ func handleLNUrlp(config ServerConfig, metadata string) http.HandlerFunc {
 		w.Header().Set("Content-Type", "application/json")
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.WriteHeader(http.StatusCreated)
-		json.NewEncoder(w).Encode(resp)
+		_ = json.NewEncoder(w).Encode(resp)
 	}
 }
 
@@ -163,18 +186,17 @@ func setupNostrHandlers(nostr *NostrConfig) {
 
 	http.HandleFunc(
 		"/.well-known/nostr.json",
-		func(w http.ResponseWriter, r *http.Request) {
+		useLogger(func(w http.ResponseWriter, r *http.Request) {
 			log.Infof("Nostr request: %#v\n", *r)
 			w.Header().Set("Content-Type", "application/json")
 			w.Header().Set("Access-Control-Allow-Origin", "*")
 			w.WriteHeader(http.StatusCreated)
-			json.NewEncoder(w).Encode(nostr)
-		},
+			_ = json.NewEncoder(w).Encode(nostr)
+		}),
 	)
 }
 
 func metadataToString(config ServerConfig) (string, error) {
-
 	thumbnailMetadata, err := thumbnailToMetadata(config.Thumbnail)
 
 	if thumbnailMetadata != nil {
@@ -187,7 +209,7 @@ func metadataToString(config ServerConfig) (string, error) {
 }
 
 func thumbnailToMetadata(thumbnailPath string) ([]string, error) {
-	bytes, err := ioutil.ReadFile(thumbnailPath)
+	bytes, err := os.ReadFile(thumbnailPath)
 	if err != nil {
 		return nil, err
 	}
@@ -211,7 +233,7 @@ func badRequestError(w http.ResponseWriter, reason string,
 	args ...interface{}) {
 
 	w.WriteHeader(http.StatusBadRequest)
-	json.NewEncoder(w).Encode(Error{
+	_ = json.NewEncoder(w).Encode(Error{
 		Status: "Error",
 		Reason: fmt.Sprintf(reason, args...),
 	})
@@ -260,7 +282,7 @@ func getClientConn(address, tlsCertPath, macaroonPath string) (*grpc.ClientConn,
 // gRPC dial options from it.
 func readMacaroon(macPath string) (grpc.DialOption, error) {
 	// Load the specified macaroon file.
-	macBytes, err := ioutil.ReadFile(macPath)
+	macBytes, err := os.ReadFile(macPath)
 	if err != nil {
 		return nil, fmt.Errorf("unable to read macaroon path : %v", err)
 	}
