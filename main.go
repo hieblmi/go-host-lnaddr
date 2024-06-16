@@ -289,28 +289,8 @@ func readMacaroon(macPath string) (grpc.DialOption, error) {
 		return nil, fmt.Errorf("unable to decode macaroon: %v", err)
 	}
 
-	macConstraints := []macaroons.Constraint{
-		// We add a time-based constraint to prevent replay of the
-		// macaroon. It's good for 60 seconds by default to make up for
-		// any discrepancy between client and server clocks, but leaking
-		// the macaroon before it becomes invalid makes it possible for
-		// an attacker to reuse the macaroon. In addition, the validity
-		// time of the macaroon is extended by the time the server clock
-		// is behind the client clock, or shortened by the time the
-		// server clock is ahead of the client clock (or invalid
-		// altogether if, in the latter case, this time is more than 60
-		// seconds).
-		macaroons.TimeoutConstraint(macaroonTimeout),
-	}
-
-	// Apply constraints to the macaroon.
-	constrainedMac, err := macaroons.AddConstraints(mac, macConstraints...)
-	if err != nil {
-		return nil, err
-	}
-
 	// Now we append the macaroon credentials to the dial options.
-	cred, err := macaroons.NewMacaroonCredential(constrainedMac)
+	cred, err := macaroons.NewMacaroonCredential(mac)
 	if err != nil {
 		return nil, fmt.Errorf("error creating macaroon credential: %v",
 			err)
