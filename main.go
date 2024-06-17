@@ -102,7 +102,7 @@ func main() {
 		config.RPCHost, config.TLSCertPath, config.InvoiceMacaroonPath,
 	)
 	if err != nil {
-		log.Errorf("unable to get a lnd client connection")
+		log.Errorf("unable to get a lnd client connection: %v", err)
 		return
 	}
 
