@@ -1,57 +1,69 @@
 {
-	"RPCHost": "localhost:10009",
-	"InvoiceMacaroonPath": "/home/alice/.lnd/data/chain/bitcoin/mainnet/invoices.macaroon",
-	"TLSCertPath": "/home/alice/.lnd/tls.cert",
-    "WorkingDir": "/home/alice/.go-host-lnaddr",
-	"Private": true,
-	"LightningAddresses": [
-		"tips@allmysats.com"
-	],
-	"MinSendableMsat": 1000,
-	"MaxSendableMsat": 100000000,
-	"MaxCommentLength": 150,
-	"Tag": "payRequest",
-	"Metadata": [
-		[
-			"text/plain",
-			"Welcome to allmysats.com"
-		],
-		[
-			"text/identifier",
-			"tips@allmysats.com"
-		]
-	],
-	"Thumbnail": "/path/to/thumbnail.[jpeg|png]",
-	"SuccessMessage": "Thank you!",
-	"InvoiceCallback": "https://allmysats.com/invoice/",
-	"AddressServerPort": 9990,
-	"Nostr": {
-		"names": {
-			"myNostrUsername": "npub1h....."
-		},
-		"relays": {
-			"b9b.....": ["wss://my.relay.com"]
-		}
-	},
-	"Notificators": [
-		{
-			"Type": "mail",
-			"MinAmount": 1000,
-			"Params": {
-				"From": "tips@allmysats.com",
-				"Target": "username@example.com",
-				"SmtpServer": "smtp.allmysats.com:587",
-				"Login": "tips@allmysats.com",
-				"Password": "somerandompassword"
-			}
-		},
-		{
-			"Type": "telegram",
-			"MinAmount": 1000,
-			"Params": {
-				"ChatId": "1234567890",
-				"Token": "TelegramToken"
-			}
-		}
-	]
+  "RPCHost": "localhost:10009",
+  "InvoiceMacaroonPath": "/home/alice/.lnd/data/chain/bitcoin/mainnet/invoices.macaroon",
+  "TLSCertPath": "/home/alice/.lnd/tls.cert",
+  "WorkingDir": "/home/alice/.go-host-lnaddr",
+  "Private": true,
+  "LightningAddresses": [
+    "tips@allmysats.com"
+  ],
+  "MinSendableMsat": 1000,
+  "MaxSendableMsat": 100000000,
+  "MaxCommentLength": 150,
+  "Tag": "payRequest",
+  "Metadata": [
+    [
+      "text/plain",
+      "Welcome to allmysats.com"
+    ],
+    [
+      "text/identifier",
+      "tips@allmysats.com"
+    ]
+  ],
+  "Thumbnail": "/path/to/thumbnail.[jpeg|png]",
+  "SuccessMessage": "Thank you!",
+  "InvoiceCallback": "https://allmysats.com/invoice/",
+  "AddressServerPort": 9990,
+  "Nostr": {
+    "names": {
+      "myNostrUsername": "npub1h....."
+    },
+    "relays": {
+      "b9b.....": [
+        "wss://my.relay.com"
+      ]
+    }
+  },
+  "Notificators": [
+    {
+      "Type": "mail",
+      "MinAmount": 1000,
+      "Params": {
+        "From": "tips@allmysats.com",
+        "Target": "username@example.com",
+        "SmtpServer": "smtp.allmysats.com:587",
+        "Login": "tips@allmysats.com",
+        "Password": "somerandompassword"
+      }
+    },
+    {
+      "Type": "telegram",
+      "MinAmount": 1000,
+      "Params": {
+        "ChatId": "1234567890",
+        "Token": "TelegramToken"
+      }
+    },
+    {
+      "Type": "http",
+      "MinAmount": 1000,
+      "Params": {
+        "Target": "https://example.com/notify?amount={{.Amount}}",
+        "Method": "POST",
+        "Encoding": "application/x-www-form-urlencoded",
+        "BodyTemplate": "message={{.Message}}&title=New+payment+received"
+      }
+    }
+  ]
 }
