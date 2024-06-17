@@ -5,8 +5,10 @@ go 1.19
 require (
 	github.com/MadAppGang/httplog v1.3.0
 	github.com/btcsuite/btclog v0.0.0-20170628155309-84c8d2346e9f
+	github.com/btcsuite/btcutil v0.0.0-20190425235716-9e5f4b9a998d
 	github.com/go-telegram-bot-api/telegram-bot-api v4.6.4+incompatible
 	github.com/lightningnetwork/lnd v0.17.2-beta
+	github.com/skip2/go-qrcode v0.0.0-20200617195104-da1b6568686e
 	google.golang.org/grpc v1.58.3
 	gopkg.in/macaroon.v2 v2.1.0
 )

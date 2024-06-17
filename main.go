@@ -1,10 +1,12 @@
 package main
 
 import (
+	"bytes"
 	"encoding/base64"
 	"encoding/json"
 	"flag"
 	"fmt"
+	"html/template"
 	baselog "log"
 	"net/http"
 	"os"
@@ -12,8 +14,10 @@ import (
 
 	"github.com/MadAppGang/httplog"
 	"github.com/btcsuite/btclog"
+	"github.com/btcsuite/btcutil/bech32"
 	"github.com/lightningnetwork/lnd/lnrpc"
 	"github.com/lightningnetwork/lnd/macaroons"
+	"github.com/skip2/go-qrcode"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"gopkg.in/macaroon.v2"
@@ -24,6 +28,8 @@ type ServerConfig struct {
 	InvoiceMacaroonPath string
 	TLSCertPath         string
 	WorkingDir          string
+	ExternalURL         string
+	ListAllURLs         bool
 	LightningAddresses  []string
 	MinSendableMsat     int
 	MaxSendableMsat     int
@@ -119,6 +125,7 @@ func main() {
 	setupHandlerPerAddress(config)
 	setupNostrHandlers(config.Nostr)
 	setupNotificators(config)
+	setupIndexHandler(config)
 
 	http.HandleFunc("/invoice/", useLogger(
 		invoiceManager.handleInvoiceCreation(config),
@@ -189,6 +196,90 @@ func setupNostrHandlers(nostr *NostrConfig) {
 			w.Header().Set("Access-Control-Allow-Origin", "*")
 			w.WriteHeader(http.StatusOK)
 			_ = json.NewEncoder(w).Encode(nostr)
+		}),
+	)
+}
+
+func setupIndexHandler(config ServerConfig) {
+	if !config.ListAllURLs || len(config.LightningAddresses) == 0 ||
+		config.ExternalURL == "" {
+		return
+	}
+
+	type user struct {
+		User    string
+		Encoded string
+		QRCode  string
+	}
+
+	var users []user
+	for _, addr := range config.LightningAddresses {
+		userName := strings.Split(addr, "@")[0]
+		url := fmt.Sprintf("%s/.well-known/lnurlp/%s",
+			config.ExternalURL, userName)
+
+		converted, err := bech32.ConvertBits([]byte(url), 8, 5, true)
+		if err != nil {
+			log.Errorf("Unable to convert url: %v", err)
+		}
+
+		lnurl, err := bech32.Encode("lnurl", converted)
+		if err != nil {
+			log.Errorf("Unable to encode url: %v", err)
+			continue
+		}
+
+		png, err := qrcode.Encode(lnurl, qrcode.Highest, 256)
+		if err != nil {
+			log.Errorf("Unable to encode QR code: %v", err)
+			continue
+		}
+
+		users = append(users, user{
+			User:    userName,
+			Encoded: lnurl,
+			QRCode:  base64.StdEncoding.EncodeToString(png),
+		})
+
+	}
+	htmlTemplate := `<!DOCTYPE html>
+<html>
+<head>
+	<title>LNURLs</title>
+</head>
+<body>
+	<h1>LNURLs</h1>
+	<ul>
+		{{range .}}
+		<li>
+			<h2>User: {{.User}}</h2>
+			<img src="data::image/png;base64, {{.QRCode}}" style="margin-left:-18px"/><br/>
+			<pre>{{.Encoded}}</pre>
+		</li>
+		{{end}}
+	</ul>
+</body>
+</html>
+`
+
+	bodyTemlate, err := template.New("html").Parse(htmlTemplate)
+	if err != nil {
+		log.Errorf("Error building URL template: %w", err)
+		return
+	}
+
+	var buf bytes.Buffer
+	err = bodyTemlate.Execute(&buf, users)
+	if err != nil {
+		log.Errorf("Error executing URL template: %w", err)
+		return
+	}
+
+	http.HandleFunc(
+		"/", useLogger(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "text/html")
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write(buf.Bytes())
 		}),
 	)
 }
