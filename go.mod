@@ -3,14 +3,18 @@ module github.com/hieblmi/go-host-lnaddr
 go 1.19
 
 require (
+	github.com/MadAppGang/httplog v1.3.0
 	github.com/btcsuite/btclog v0.0.0-20170628155309-84c8d2346e9f
+	github.com/btcsuite/btcutil v0.0.0-20190425235716-9e5f4b9a998d
 	github.com/go-telegram-bot-api/telegram-bot-api v4.6.4+incompatible
 	github.com/lightningnetwork/lnd v0.17.2-beta
+	github.com/skip2/go-qrcode v0.0.0-20200617195104-da1b6568686e
 	google.golang.org/grpc v1.58.3
 	gopkg.in/macaroon.v2 v2.1.0
 )
 
 require (
+	github.com/TylerBrock/colorjson v0.0.0-20200706003622-8a50f05110d2 // indirect
 	github.com/aead/chacha20 v0.0.0-20180709150244-8b13a72661da // indirect
 	github.com/aead/siphash v1.0.1 // indirect
 	github.com/andybalholm/brotli v1.0.3 // indirect
@@ -39,6 +43,7 @@ require (
 	github.com/decred/dcrd/lru v1.0.0 // indirect
 	github.com/dsnet/compress v0.0.1 // indirect
 	github.com/dustin/go-humanize v1.0.0 // indirect
+	github.com/fatih/color v1.13.0 // indirect
 	github.com/fergusstrange/embedded-postgres v1.10.0 // indirect
 	github.com/go-errors/errors v1.0.1 // indirect
 	github.com/gofrs/uuid v4.2.0+incompatible // indirect
@@ -89,7 +94,8 @@ require (
 	github.com/lightningnetwork/lnd/tlv v1.1.1 // indirect
 	github.com/lightningnetwork/lnd/tor v1.1.2 // indirect
 	github.com/ltcsuite/ltcd v0.0.0-20190101042124-f37f8bf35796 // indirect
-	github.com/mattn/go-isatty v0.0.16 // indirect
+	github.com/mattn/go-colorable v0.1.13 // indirect
+	github.com/mattn/go-isatty v0.0.17 // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.1 // indirect
 	github.com/mholt/archiver/v3 v3.5.0 // indirect
 	github.com/miekg/dns v1.1.43 // indirect

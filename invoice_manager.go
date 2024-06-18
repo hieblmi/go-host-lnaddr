@@ -34,7 +34,6 @@ func NewInvoiceManager(cfg *InvoiceManagerConfig) *InvoiceManager {
 
 func (m *InvoiceManager) handleInvoiceCreation(config ServerConfig) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		log.Infof("Handling invoice creation: %v\n", *r)
 		w.Header().Set("Content-Type", "application/json")
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 

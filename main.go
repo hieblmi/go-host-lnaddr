@@ -1,21 +1,26 @@
 package main
 
 import (
+	"bytes"
 	"encoding/base64"
 	"encoding/json"
 	"flag"
 	"fmt"
-	"github.com/btcsuite/btclog"
-	"github.com/lightningnetwork/lnd/lnrpc"
-	"github.com/lightningnetwork/lnd/macaroons"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials"
-	"gopkg.in/macaroon.v2"
-	"io/ioutil"
-	default_log "log"
+	"html/template"
+	baselog "log"
 	"net/http"
 	"os"
 	"strings"
+
+	"github.com/MadAppGang/httplog"
+	"github.com/btcsuite/btclog"
+	"github.com/btcsuite/btcutil/bech32"
+	"github.com/lightningnetwork/lnd/lnrpc"
+	"github.com/lightningnetwork/lnd/macaroons"
+	"github.com/skip2/go-qrcode"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
+	"gopkg.in/macaroon.v2"
 )
 
 type ServerConfig struct {
@@ -23,6 +28,8 @@ type ServerConfig struct {
 	InvoiceMacaroonPath string
 	TLSCertPath         string
 	WorkingDir          string
+	ExternalURL         string
+	ListAllURLs         bool
 	LightningAddresses  []string
 	MinSendableMsat     int
 	MaxSendableMsat     int
@@ -38,12 +45,12 @@ type ServerConfig struct {
 }
 
 type LNUrlPay struct {
-	MinSendable     int    `json:"minSendable"`
-	MaxSendable     int    `json:"maxSendable"`
-	CommentAllowed  int    `json:"commentAllowed"`
-	Tag             string `json:"tag"`
-	Metadata        string `json:"metadata"`
-	Callback        string `json:"callback"`
+	MinSendable    int    `json:"minSendable"`
+	MaxSendable    int    `json:"maxSendable"`
+	CommentAllowed int    `json:"commentAllowed"`
+	Tag            string `json:"tag"`
+	Metadata       string `json:"metadata"`
+	Callback       string `json:"callback"`
 }
 
 type Invoice struct {
@@ -76,23 +83,22 @@ func main() {
 		"config", "./config.json", "Specify the configuration file",
 	)
 	flag.Parse()
-	file, err := os.Open(*c)
+
+	configBytes, err := os.ReadFile(*c)
 	if err != nil {
-		default_log.Fatalf("cannot open config file %v", err)
+		baselog.Fatalf("cannot read config file '%s': %v", *c, err)
 	}
-	defer file.Close()
 
 	config := ServerConfig{}
-	decoder := json.NewDecoder(file)
-	err = decoder.Decode(&config)
+	err = json.Unmarshal(configBytes, &config)
 	if err != nil {
-		default_log.Fatalf("cannot decode config JSON %v", err)
+		baselog.Fatalf("cannot decode config JSON %v", err)
 	}
 
 	workingDir := config.WorkingDir
 	log, err = GetLogger(workingDir, "LNADDR")
 	if err != nil {
-		default_log.Fatalf("cannot get logger %v", err)
+		baselog.Fatalf("cannot get logger %v", err)
 	}
 
 	log.Infof("Starting lightning address server on port %v...",
@@ -102,7 +108,7 @@ func main() {
 		config.RPCHost, config.TLSCertPath, config.InvoiceMacaroonPath,
 	)
 	if err != nil {
-		log.Errorf("unable to get a lnd client connection")
+		log.Errorf("unable to get a lnd client connection: %v", err)
 		return
 	}
 
@@ -119,11 +125,31 @@ func main() {
 	setupHandlerPerAddress(config)
 	setupNostrHandlers(config.Nostr)
 	setupNotificators(config)
+	setupIndexHandler(config)
 
-	http.HandleFunc("/invoice/", invoiceManager.handleInvoiceCreation(
-		config),
+	http.HandleFunc("/invoice/", useLogger(
+		invoiceManager.handleInvoiceCreation(config),
+	))
+	err = http.ListenAndServe(
+		fmt.Sprintf(":%d", config.AddressServerPort), nil,
 	)
-	http.ListenAndServe(fmt.Sprintf(":%d", config.AddressServerPort), nil)
+	if err != nil {
+		log.Errorf("unable to start server: %v", err)
+	}
+}
+
+func useLogger(h http.HandlerFunc) http.HandlerFunc {
+	logger := httplog.LoggerWithConfig(httplog.LoggerConfig{
+		Formatter: httplog.ChainLogFormatter(
+			httplog.DefaultLogFormatter,
+			httplog.RequestHeaderLogFormatter,
+			httplog.RequestBodyLogFormatter,
+			httplog.ResponseHeaderLogFormatter,
+			httplog.ResponseBodyLogFormatter,
+		),
+		CaptureBody: true,
+	})
+	return logger(h).ServeHTTP
 }
 
 func setupHandlerPerAddress(config ServerConfig) {
@@ -134,13 +160,14 @@ func setupHandlerPerAddress(config ServerConfig) {
 	for _, addr := range config.LightningAddresses {
 		addr := strings.Split(addr, "@")[0]
 		endpoint := fmt.Sprintf("/.well-known/lnurlp/%s", addr)
-		http.HandleFunc(endpoint, handleLNUrlp(config, metadata))
+		http.HandleFunc(
+			endpoint, useLogger(handleLNUrlp(config, metadata)),
+		)
 	}
 }
 
 func handleLNUrlp(config ServerConfig, metadata string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		log.Infof("LNUrlp request: %v\n", *r)
 		resp := LNUrlPay{
 			MinSendable:    config.MinSendableMsat,
 			MaxSendable:    config.MaxSendableMsat,
@@ -151,8 +178,8 @@ func handleLNUrlp(config ServerConfig, metadata string) http.HandlerFunc {
 		}
 		w.Header().Set("Content-Type", "application/json")
 		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.WriteHeader(http.StatusCreated)
-		json.NewEncoder(w).Encode(resp)
+		w.WriteHeader(http.StatusOK)
+		_ = json.NewEncoder(w).Encode(resp)
 	}
 }
 
@@ -163,18 +190,101 @@ func setupNostrHandlers(nostr *NostrConfig) {
 
 	http.HandleFunc(
 		"/.well-known/nostr.json",
-		func(w http.ResponseWriter, r *http.Request) {
+		useLogger(func(w http.ResponseWriter, r *http.Request) {
 			log.Infof("Nostr request: %#v\n", *r)
 			w.Header().Set("Content-Type", "application/json")
 			w.Header().Set("Access-Control-Allow-Origin", "*")
-			w.WriteHeader(http.StatusCreated)
-			json.NewEncoder(w).Encode(nostr)
-		},
+			w.WriteHeader(http.StatusOK)
+			_ = json.NewEncoder(w).Encode(nostr)
+		}),
+	)
+}
+
+func setupIndexHandler(config ServerConfig) {
+	if !config.ListAllURLs || len(config.LightningAddresses) == 0 ||
+		config.ExternalURL == "" {
+		return
+	}
+
+	type user struct {
+		User    string
+		Encoded string
+		QRCode  string
+	}
+
+	var users []user
+	for _, addr := range config.LightningAddresses {
+		userName := strings.Split(addr, "@")[0]
+		url := fmt.Sprintf("%s/.well-known/lnurlp/%s",
+			config.ExternalURL, userName)
+
+		converted, err := bech32.ConvertBits([]byte(url), 8, 5, true)
+		if err != nil {
+			log.Errorf("Unable to convert url: %v", err)
+		}
+
+		lnurl, err := bech32.Encode("lnurl", converted)
+		if err != nil {
+			log.Errorf("Unable to encode url: %v", err)
+			continue
+		}
+
+		png, err := qrcode.Encode(lnurl, qrcode.Highest, 256)
+		if err != nil {
+			log.Errorf("Unable to encode QR code: %v", err)
+			continue
+		}
+
+		users = append(users, user{
+			User:    userName,
+			Encoded: lnurl,
+			QRCode:  base64.StdEncoding.EncodeToString(png),
+		})
+
+	}
+	htmlTemplate := `<!DOCTYPE html>
+<html>
+<head>
+	<title>LNURLs</title>
+</head>
+<body>
+	<h1>LNURLs</h1>
+	<ul>
+		{{range .}}
+		<li>
+			<h2>User: {{.User}}</h2>
+			<img src="data::image/png;base64, {{.QRCode}}" style="margin-left:-18px"/><br/>
+			<pre>{{.Encoded}}</pre>
+		</li>
+		{{end}}
+	</ul>
+</body>
+</html>
+`
+
+	bodyTemlate, err := template.New("html").Parse(htmlTemplate)
+	if err != nil {
+		log.Errorf("Error building URL template: %w", err)
+		return
+	}
+
+	var buf bytes.Buffer
+	err = bodyTemlate.Execute(&buf, users)
+	if err != nil {
+		log.Errorf("Error executing URL template: %w", err)
+		return
+	}
+
+	http.HandleFunc(
+		"/", useLogger(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "text/html")
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write(buf.Bytes())
+		}),
 	)
 }
 
 func metadataToString(config ServerConfig) (string, error) {
-
 	thumbnailMetadata, err := thumbnailToMetadata(config.Thumbnail)
 
 	if thumbnailMetadata != nil {
@@ -187,7 +297,7 @@ func metadataToString(config ServerConfig) (string, error) {
 }
 
 func thumbnailToMetadata(thumbnailPath string) ([]string, error) {
-	bytes, err := ioutil.ReadFile(thumbnailPath)
+	bytes, err := os.ReadFile(thumbnailPath)
 	if err != nil {
 		return nil, err
 	}
@@ -211,7 +321,7 @@ func badRequestError(w http.ResponseWriter, reason string,
 	args ...interface{}) {
 
 	w.WriteHeader(http.StatusBadRequest)
-	json.NewEncoder(w).Encode(Error{
+	_ = json.NewEncoder(w).Encode(Error{
 		Status: "Error",
 		Reason: fmt.Sprintf(reason, args...),
 	})
@@ -260,7 +370,7 @@ func getClientConn(address, tlsCertPath, macaroonPath string) (*grpc.ClientConn,
 // gRPC dial options from it.
 func readMacaroon(macPath string) (grpc.DialOption, error) {
 	// Load the specified macaroon file.
-	macBytes, err := ioutil.ReadFile(macPath)
+	macBytes, err := os.ReadFile(macPath)
 	if err != nil {
 		return nil, fmt.Errorf("unable to read macaroon path : %v", err)
 	}
@@ -270,28 +380,8 @@ func readMacaroon(macPath string) (grpc.DialOption, error) {
 		return nil, fmt.Errorf("unable to decode macaroon: %v", err)
 	}
 
-	macConstraints := []macaroons.Constraint{
-		// We add a time-based constraint to prevent replay of the
-		// macaroon. It's good for 60 seconds by default to make up for
-		// any discrepancy between client and server clocks, but leaking
-		// the macaroon before it becomes invalid makes it possible for
-		// an attacker to reuse the macaroon. In addition, the validity
-		// time of the macaroon is extended by the time the server clock
-		// is behind the client clock, or shortened by the time the
-		// server clock is ahead of the client clock (or invalid
-		// altogether if, in the latter case, this time is more than 60
-		// seconds).
-		macaroons.TimeoutConstraint(macaroonTimeout),
-	}
-
-	// Apply constraints to the macaroon.
-	constrainedMac, err := macaroons.AddConstraints(mac, macConstraints...)
-	if err != nil {
-		return nil, err
-	}
-
 	// Now we append the macaroon credentials to the dial options.
-	cred, err := macaroons.NewMacaroonCredential(constrainedMac)
+	cred, err := macaroons.NewMacaroonCredential(mac)
 	if err != nil {
 		return nil, fmt.Errorf("error creating macaroon credential: %v",
 			err)
