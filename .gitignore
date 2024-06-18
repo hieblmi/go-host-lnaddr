@@ -17,3 +17,4 @@
 # Local development files
 /.config-dev.json
 /.workdir-dev
+.idea
