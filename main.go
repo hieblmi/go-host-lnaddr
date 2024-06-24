@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"github.com/BurntSushi/toml"
 	"html/template"
 	baselog "log"
 	"net/http"
@@ -79,20 +80,31 @@ type NostrConfig struct {
 }
 
 func main() {
-	c := flag.String(
-		"config", "./config.json", "Specify the configuration file",
-	)
+	c := flag.String("config", "./config.json", "Specify the configuration file")
 	flag.Parse()
 
 	configBytes, err := os.ReadFile(*c)
 	if err != nil {
-		baselog.Fatalf("cannot read config file '%s': %v", *c, err)
+		log.Errorf("cannot read config file '%s': %v", *c, err)
+		return
 	}
 
 	config := ServerConfig{}
-	err = json.Unmarshal(configBytes, &config)
-	if err != nil {
-		baselog.Fatalf("cannot decode config JSON %v", err)
+	if strings.HasSuffix(*c, ".json") {
+		err = json.Unmarshal(configBytes, &config)
+		if err != nil {
+			log.Errorf("cannot decode config JSON %v", err)
+			return
+		}
+	} else if strings.HasSuffix(*c, ".toml") {
+		_, err = toml.Decode(string(configBytes), &config)
+		if err != nil {
+			log.Errorf("cannot decode config TOML %v", err)
+			return
+		}
+	} else {
+		log.Errorf("unsupported config file format: %s", *c)
+		return
 	}
 
 	workingDir := config.WorkingDir
