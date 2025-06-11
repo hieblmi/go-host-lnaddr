@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"encoding/hex"
 	"sync"
 	"time"
 
@@ -108,7 +109,9 @@ func (s *SettlementHandler) subscribeToInvoiceRpc(ctx context.Context,
 				)
 				if zapReceipt != nil && s.nsec != "" {
 					zapReceipt.event.CreatedAt = nostr.Timestamp(invoice.SettleDate)
+					zapReceipt.event.Tags = append(zapReceipt.event.Tags, nostr.Tag{"preimage", hex.EncodeToString(invoice.RPreimage)})
 					zapReceipt.event.Sign(s.nsec)
+					log.Infof("Publishing zap receipt: %+v", zapReceipt.event)
 					go publishZapReceipt(zapReceipt)
 				}
 			}
