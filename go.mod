@@ -1,8 +1,6 @@
 module github.com/hieblmi/go-host-lnaddr
 
-go 1.21.4
-
-toolchain go1.22.3
+go 1.24.6
 
 require (
 	github.com/MadAppGang/httplog v1.3.0
