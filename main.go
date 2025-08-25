@@ -43,7 +43,7 @@ type ServerConfig struct {
 	InvoiceCallback     string
 	AddressServerPort   int
 	Nostr               *NostrConfig
-	Notificators        []notificatorConfig
+	Notifiers           []notifierConfig
 	Zaps                *ZapsConfig
 }
 
@@ -120,21 +120,27 @@ func main() {
 		baselog.Fatalf("cannot get logger %v", err)
 	}
 
-	if config.Zaps != nil && config.Zaps.Npub != "" && config.Zaps.Nsec != "" {
+	if isZapsConfigured(config) {
 		_, sk, err := nip19.Decode(config.Zaps.Nsec)
 		if err != nil {
-			baselog.Fatalf("Error decoding private nostr zap key: %s", err)
+			baselog.Fatalf("Error decoding private nostr zap "+
+				"key: %s", err)
 		}
 		pk, err := nostr.GetPublicKey(sk.(string))
 		if err != nil {
-			baselog.Fatalf("Can't get public nostr zap key from private key: %s", err)
+			baselog.Fatalf("Can't get public nostr zap key from "+
+				"private key: %s", err)
 		}
 		npub, err := nip19.EncodePublicKey(pk)
 		if err != nil {
-			baselog.Fatalf("Error encoding public nostr zap key: %s", err)
+			baselog.Fatalf("Error encoding public nostr zap "+
+				"key: %s", err)
 		}
 		if npub != config.Zaps.Npub {
-			baselog.Fatalf("Public nostr zap key in config is %s doesn't match the expected key %s, make sure you entered the correct key pair", config.Zaps.Npub, npub)
+			baselog.Fatalf("Public nostr zap key in config is %s "+
+				"doesn't match the expected key %s, make "+
+				"sure you entered the correct key pair",
+				config.Zaps.Npub, npub)
 		}
 		// save keys hex-encoded
 		config.Zaps.Npub = pk
@@ -164,7 +170,7 @@ func main() {
 
 	setupHandlerPerAddress(config)
 	setupNostrHandlers(config.Nostr)
-	setupNotificators(config)
+	setupNotifiers(config)
 	setupIndexHandler(config)
 
 	http.HandleFunc("/invoice/", useLogger(
@@ -216,7 +222,8 @@ func handleLNUrlp(config ServerConfig, metadata string) http.HandlerFunc {
 			Metadata:       metadata,
 			Callback:       config.InvoiceCallback,
 		}
-		if config.Zaps != nil && config.Zaps.Npub != "" && config.Zaps.Nsec != "" {
+
+		if isZapsConfigured(config) {
 			resp.AllowsNostr = true
 			resp.NostrPubkey = config.Zaps.Npub
 		}
@@ -374,8 +381,7 @@ func badRequestError(w http.ResponseWriter, reason string,
 // maxMsgRecvSize is the largest message our client will receive. We
 // set this to 200MiB atm.
 var (
-	maxMsgRecvSize        = grpc.MaxCallRecvMsgSize(1 * 1024 * 1024 * 200)
-	macaroonTimeout int64 = 60
+	maxMsgRecvSize = grpc.MaxCallRecvMsgSize(1 * 1024 * 1024 * 200)
 )
 
 func getClientConn(address, tlsCertPath, macaroonPath string) (*grpc.ClientConn,
@@ -431,4 +437,9 @@ func readMacaroon(macPath string) (grpc.DialOption, error) {
 			err)
 	}
 	return grpc.WithPerRPCCredentials(cred), nil
+}
+
+func isZapsConfigured(config ServerConfig) bool {
+	return config.Zaps != nil && config.Zaps.Npub != "" &&
+		config.Zaps.Nsec != ""
 }
