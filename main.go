@@ -17,6 +17,8 @@ import (
 	"github.com/btcsuite/btcutil/bech32"
 	"github.com/lightningnetwork/lnd/lnrpc"
 	"github.com/lightningnetwork/lnd/macaroons"
+	"github.com/nbd-wtf/go-nostr"
+	"github.com/nbd-wtf/go-nostr/nip19"
 	"github.com/skip2/go-qrcode"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -42,6 +44,7 @@ type ServerConfig struct {
 	AddressServerPort   int
 	Nostr               *NostrConfig
 	Notificators        []notificatorConfig
+	Zaps                *ZapsConfig
 }
 
 type LNUrlPay struct {
@@ -51,6 +54,8 @@ type LNUrlPay struct {
 	Tag            string `json:"tag"`
 	Metadata       string `json:"metadata"`
 	Callback       string `json:"callback"`
+	AllowsNostr    bool   `json:"allowsNostr"`
+	NostrPubkey    string `json:"nostrPubkey"`
 }
 
 type Invoice struct {
@@ -78,11 +83,25 @@ type NostrConfig struct {
 	Relays map[string][]string `json:"relays"`
 }
 
+type ZapsConfig struct {
+	Npub string
+	Nsec string
+}
+
 func main() {
 	c := flag.String(
 		"config", "./config.json", "Specify the configuration file",
 	)
+	gk := flag.Bool("genkey", false, "Generate nostr keypair for zaps")
 	flag.Parse()
+	if *gk {
+		sk := nostr.GeneratePrivateKey()
+		pk, _ := nostr.GetPublicKey(sk)
+		nsec, _ := nip19.EncodePrivateKey(sk)
+		npub, _ := nip19.EncodePublicKey(pk)
+		fmt.Printf("npub: %s\nnsec: %s\n", npub, nsec)
+		return
+	}
 
 	configBytes, err := os.ReadFile(*c)
 	if err != nil {
@@ -101,6 +120,27 @@ func main() {
 		baselog.Fatalf("cannot get logger %v", err)
 	}
 
+	if config.Zaps != nil && config.Zaps.Npub != "" && config.Zaps.Nsec != "" {
+		_, sk, err := nip19.Decode(config.Zaps.Nsec)
+		if err != nil {
+			baselog.Fatalf("Error decoding private nostr zap key: %s", err)
+		}
+		pk, err := nostr.GetPublicKey(sk.(string))
+		if err != nil {
+			baselog.Fatalf("Can't get public nostr zap key from private key: %s", err)
+		}
+		npub, err := nip19.EncodePublicKey(pk)
+		if err != nil {
+			baselog.Fatalf("Error encoding public nostr zap key: %s", err)
+		}
+		if npub != config.Zaps.Npub {
+			baselog.Fatalf("Public nostr zap key in config is %s doesn't match the expected key %s, make sure you entered the correct key pair", config.Zaps.Npub, npub)
+		}
+		// save keys hex-encoded
+		config.Zaps.Npub = pk
+		config.Zaps.Nsec = sk.(string)
+	}
+
 	log.Infof("Starting lightning address server on port %v...",
 		config.AddressServerPort)
 
@@ -113,7 +153,7 @@ func main() {
 	}
 
 	lndClient := lnrpc.NewLightningClient(clientConn)
-	settlementHandler := NewSettlementHandler(lndClient)
+	settlementHandler := NewSettlementHandler(lndClient, config.Zaps.Nsec)
 
 	invoiceManager := NewInvoiceManager(
 		&InvoiceManagerConfig{
@@ -175,6 +215,10 @@ func handleLNUrlp(config ServerConfig, metadata string) http.HandlerFunc {
 			Tag:            config.Tag,
 			Metadata:       metadata,
 			Callback:       config.InvoiceCallback,
+		}
+		if config.Zaps != nil && config.Zaps.Npub != "" && config.Zaps.Nsec != "" {
+			resp.AllowsNostr = true
+			resp.NostrPubkey = config.Zaps.Npub
 		}
 		w.Header().Set("Content-Type", "application/json")
 		w.Header().Set("Access-Control-Allow-Origin", "*")

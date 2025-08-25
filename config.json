@@ -36,6 +36,10 @@
       ]
     }
   },
+  "Zaps": {
+    "Npub": "npub1...",
+    "Nsec": "nsec1..."
+  },
   "Notificators": [
     {
       "Type": "mail",

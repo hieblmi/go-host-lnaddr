@@ -46,5 +46,5 @@ func (t *telegramNotificator) Notify(amount uint64, comment string) (err error) 
 }
 
 func (t *telegramNotificator) Target() string {
-	return fmt.Sprintf("ChatId: %s", t.ChatId)
+	return fmt.Sprintf("ChatId: %d", t.ChatId)
 }

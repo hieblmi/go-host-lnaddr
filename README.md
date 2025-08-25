@@ -13,6 +13,7 @@ Lighting Wallets like [https://github.com/ZeusLN/zeus](Zeus), [https://blixtwall
 - Can host multiple lightning addresses on the same server instance.
 - Notification support for payment receipts via email, telegram, http and more to come.
 - Nostr NIP 05 style account verification, see https://github.com/nostr-protocol/nips/blob/master/05.md
+- Nostr NIP 57 zaps
 
 ## Install and Setup
 ### Clone & Build
@@ -34,6 +35,7 @@ go install github.com/hieblmi/go-host-lnaddr@latest
 - `InvoiceCallback`: "https://[YOUR_DOMAIN].com/invoice/" - this is the endpoint that will create the invoice
 - `AddressServerPort`: 9990 - the port your reverse proxy points to
 - `Nostr`: `{ "names": {...}, "relays": {...} }` - See https://github.com/nostr-protocol/nips/blob/master/05.md#example for details.
+- `Zaps`: `{ "Npub": "npub1...", "Nsec": "nsec1..." }`: enable Nostr zaps, DO NOT use your main Nostr key pair here! It is only used to publish zap receipts. Generate a new key pair by running `go-host-lnaddr -genkey` and use it here.
 - `Notificators`: [
         {
             "Type": "mail",

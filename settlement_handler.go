@@ -3,18 +3,25 @@ package main
 import (
 	"bytes"
 	"context"
+	"encoding/hex"
+	"sync"
+	"time"
+
 	"github.com/lightningnetwork/lnd/lnrpc"
+	"github.com/nbd-wtf/go-nostr"
 )
 
 type SettlementHandler struct {
 	lndClient lnrpc.LightningClient
+	nsec      string
 }
 
 func NewSettlementHandler(
-	lndClient lnrpc.LightningClient) *SettlementHandler {
+	lndClient lnrpc.LightningClient, nsec string) *SettlementHandler {
 
 	return &SettlementHandler{
 		lndClient: lndClient,
+		nsec:      nsec,
 	}
 }
 
@@ -50,8 +57,33 @@ func NewSettlementHandler(
 	return nil
 }*/
 
+func publishZapReceipt(zapReceipt *zapReceipt) {
+	zapctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	defer cancel()
+	wg := sync.WaitGroup{}
+	for _, relayAddr := range zapReceipt.relays {
+		wg.Add(1)
+		go func(relayAddr string) {
+			defer wg.Done()
+			relay, err := nostr.RelayConnect(zapctx, relayAddr)
+			if err != nil {
+				log.Warnf("Error connecting to relay %s", relayAddr)
+				return
+			}
+			err = relay.Publish(zapctx, zapReceipt.event)
+			if err != nil {
+				log.Warnf("Error publishing zap receipt to relay %s: %s", relayAddr, err)
+			} else {
+				log.Infof("Published zap receipt to relay %s", relayAddr)
+			}
+			relay.Close()
+		}(relayAddr)
+	}
+	wg.Wait()
+}
+
 func (s *SettlementHandler) subscribeToInvoiceRpc(ctx context.Context,
-	rHash []byte, comment string) error {
+	rHash []byte, comment string, zapReceipt *zapReceipt) error {
 
 	stream, err := s.lndClient.SubscribeInvoices(
 		ctx, &lnrpc.InvoiceSubscription{},
@@ -75,6 +107,13 @@ func (s *SettlementHandler) subscribeToInvoiceRpc(ctx context.Context,
 				broadcastNotification(
 					uint64(invoice.AmtPaidSat), comment,
 				)
+				if zapReceipt != nil && s.nsec != "" {
+					zapReceipt.event.CreatedAt = nostr.Timestamp(invoice.SettleDate)
+					zapReceipt.event.Tags = append(zapReceipt.event.Tags, nostr.Tag{"preimage", hex.EncodeToString(invoice.RPreimage)})
+					zapReceipt.event.Sign(s.nsec)
+					log.Infof("Publishing zap receipt: %+v", zapReceipt.event)
+					go publishZapReceipt(zapReceipt)
+				}
 			}
 		}
 	}()

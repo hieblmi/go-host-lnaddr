@@ -4,9 +4,11 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/json"
-	"github.com/lightningnetwork/lnd/lnrpc"
 	"net/http"
 	"strconv"
+
+	"github.com/lightningnetwork/lnd/lnrpc"
+	"github.com/nbd-wtf/go-nostr"
 )
 
 var TorProxyURL = "socks5://127.0.0.1:9050"
@@ -26,10 +28,97 @@ type InvoiceParams struct {
 	DescriptionHash []byte
 }
 
+type zapReceipt struct {
+	event       nostr.Event
+	description string
+	relays      []string
+}
+
 func NewInvoiceManager(cfg *InvoiceManagerConfig) *InvoiceManager {
 	return &InvoiceManager{
 		Cfg: cfg,
 	}
+}
+
+func (m *InvoiceManager) processZapRequest(zapRequest []string, msat int, w http.ResponseWriter) *zapReceipt {
+	e := nostr.Event{}
+	err := e.UnmarshalJSON([]byte(zapRequest[0]))
+	if err != nil {
+		badRequestError(w, "Invalid nostr field: %s", err)
+		return nil
+	}
+	if ok, err := e.CheckSignature(); !ok {
+		badRequestError(w, "Invalid nostr signature: %s", err)
+		return nil
+	}
+	if e.Kind != nostr.KindZapRequest {
+		badRequestError(w, "Invalid event kind: %d", e.Kind)
+		return nil
+	}
+	if len(e.Tags) == 0 {
+		badRequestError(w, "No nostr tags")
+		return nil
+	}
+	tp := []string{}
+	tP := []string{}
+	te := []string{}
+	relays := []string{}
+	ta := []string{}
+	for _, t := range e.Tags {
+		if len(t) > 0 {
+			if t[0] == "p" {
+				tp = append(tp, t[1])
+			}
+			if t[0] == "e" {
+				te = append(te, t[1])
+			}
+			if t[0] == "amount" {
+				amount, err := strconv.Atoi(t[1])
+				if err != nil {
+					badRequestError(w, "Invalid amount tag: %s", t[1])
+					return nil
+				}
+				if amount != msat {
+					badRequestError(w, "Incorrect amount: %d expected %d", amount, msat)
+					return nil
+				}
+			}
+			if t[0] == "relays" {
+				relays = append(relays, t[1:]...)
+			}
+			if t[0] == "a" {
+				ta = append(ta, t[1])
+			}
+			if t[0] == "P" {
+				tP = append(tP, t[1])
+			}
+		}
+	}
+	if len(tp) != 1 {
+		badRequestError(w, "Zap request should have 1 p tag")
+		return nil
+	}
+	if len(te) > 1 {
+		badRequestError(w, "Zap request should have 0 or 1 e tag")
+		return nil
+	}
+	description, err := e.MarshalJSON()
+	if err != nil {
+		badRequestError(w, "Can't marshal zap request: %s", err)
+		return nil
+	}
+	receiptTags := []nostr.Tag{{"description", string(description)}}
+	receiptTags = append(receiptTags, nostr.Tag{"p", tp[0]})
+	if len(te) > 0 {
+		receiptTags = append(receiptTags, nostr.Tag{"e", te[0]})
+	}
+	if len(ta) > 0 {
+		receiptTags = append(receiptTags, nostr.Tag{"a", ta[0]})
+	}
+	if len(tP) > 0 {
+		receiptTags = append(receiptTags, nostr.Tag{"P", tP[0]})
+	}
+	return &zapReceipt{event: nostr.Event{Kind: nostr.KindZap, Tags: receiptTags}, relays: relays, description: string(description)}
 }
 
 func (m *InvoiceManager) handleInvoiceCreation(config ServerConfig) http.HandlerFunc {
@@ -75,6 +164,15 @@ func (m *InvoiceManager) handleInvoiceCreation(config ServerConfig) http.Handler
 			log.Warnf("Unable to convert metadata to string: %v\n",
 				err)
 		}
+		zapRequest, hasNostr := r.URL.Query()["nostr"]
+		var zapReceipt *zapReceipt
+		if hasNostr && len(zapRequest) > 0 {
+			zapReceipt = m.processZapRequest(zapRequest, mSat, w)
+			if zapReceipt == nil {
+				return
+			}
+			metadata = zapReceipt.description
+		}
 
 		// parameters ok, creating invoice
 		invoiceParams := InvoiceParams{
@@ -92,6 +190,10 @@ func (m *InvoiceManager) handleInvoiceCreation(config ServerConfig) http.Handler
 			return
 		}
 
+		if zapReceipt != nil {
+			zapReceipt.event.Tags = append(zapReceipt.event.Tags, nostr.Tag{"bolt11", bolt11})
+		}
+
 		invoice := Invoice{
 			Pr:     bolt11,
 			Routes: make([]string, 0),
@@ -101,7 +203,7 @@ func (m *InvoiceManager) handleInvoiceCreation(config ServerConfig) http.Handler
 			},
 		}
 		m.Cfg.SettlementHandler.subscribeToInvoiceRpc(
-			context.Background(), r_hash, comment,
+			context.Background(), r_hash, comment, zapReceipt,
 		)
 		w.WriteHeader(http.StatusCreated)
 		json.NewEncoder(w).Encode(invoice)
