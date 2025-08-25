@@ -15,6 +15,5 @@
 # vendor/
 
 # Local development files
-/.dev-config.json
-/.workdir-dev
+./dev-config.json
 .idea

@@ -1,34 +1,42 @@
 package main
 
-type notificatorConfig struct {
+type notifierConfig struct {
 	Type      string
 	MinAmount uint64
 	Params    map[string]string
 }
 
-type notificator interface {
+type notifier interface {
 	Notify(amount uint64, comment string) error
 	Target() string
 }
 
-var notificators []notificator
+var notifiers []notifier
 
-func setupNotificators(cfg ServerConfig) {
-	for _, c := range cfg.Notificators {
+func setupNotifiers(cfg ServerConfig) {
+	for _, c := range cfg.Notifiers {
 		switch c.Type {
 		case "mail":
-			notificators = append(notificators, NewMailNotificator(c))
+			notifiers = append(
+				notifiers, NewMailNotificator(c),
+			)
+
 		case "http":
-			notificators = append(notificators, NewHttpNotificator(c))
+			notifiers = append(
+				notifiers, NewHttpNotificator(c),
+			)
+
 		case "telegram":
-			notificators = append(notificators, NewTelegramNotificator(c))
+			notifiers = append(
+				notifiers, NewTelegramNotificator(c),
+			)
 		}
 	}
 }
 
 func broadcastNotification(amount uint64, comment string) {
 	log.Infof("Received %d sats with comment: %s", amount, comment)
-	for _, n := range notificators {
+	for _, n := range notifiers {
 		err := n.Notify(amount, comment)
 		if err != nil {
 			log.Infof("Error sending notification to %s: %s",

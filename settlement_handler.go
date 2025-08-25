@@ -17,45 +17,13 @@ type SettlementHandler struct {
 }
 
 func NewSettlementHandler(
-	lndClient lnrpc.LightningClient, nsec string) *SettlementHandler {
+    lndClient lnrpc.LightningClient, nsec string) *SettlementHandler {
 
 	return &SettlementHandler{
 		lndClient: lndClient,
 		nsec:      nsec,
 	}
 }
-
-/*func (sh *SettlementHandler) subscribeToInvoice(r_hash string, comment string) error {
-	resp, err := sh.get("/v2/invoices/subscribe/" + strings.NewReplacer("+", "-", "/", "_").Replace(r_hash))
-	if err != nil {
-		log.Infof("Error subscribing to invoice: %s", err)
-		return err
-	}
-	go func() {
-		defer resp.Body.Close()
-		dec := json.NewDecoder(resp.Body)
-		for dec.More() {
-			var invoice struct {
-				Result struct {
-					AmtPaidSat string `json:"amt_paid_sat"`
-					Settled    bool
-				}
-			}
-			dec.Decode(&invoice)
-			log.Printf("New invoice info: %+v", invoice)
-			if invoice.Result.Settled {
-				log.Printf("Invoice %s settled", r_hash)
-				amt, err := strconv.ParseUint(invoice.Result.AmtPaidSat, 10, 64)
-				if err != nil {
-					log.Printf("Invalid amount %s.", invoice.Result.AmtPaidSat)
-				} else {
-					broadcastNotification(amt, comment)
-				}
-			}
-		}
-	}()
-	return nil
-}*/
 
 func publishZapReceipt(zapReceipt *zapReceipt) {
 	zapctx, cancel := context.WithTimeout(context.Background(), time.Minute)
@@ -67,14 +35,18 @@ func publishZapReceipt(zapReceipt *zapReceipt) {
 			defer wg.Done()
 			relay, err := nostr.RelayConnect(zapctx, relayAddr)
 			if err != nil {
-				log.Warnf("Error connecting to relay %s", relayAddr)
+				log.Warnf("Error connecting to relay %s",
+					relayAddr)
+
 				return
 			}
 			err = relay.Publish(zapctx, zapReceipt.event)
 			if err != nil {
-				log.Warnf("Error publishing zap receipt to relay %s: %s", relayAddr, err)
+				log.Warnf("Error publishing zap receipt to "+
+				    "relay %s: %s", relayAddr, err)
 			} else {
-				log.Infof("Published zap receipt to relay %s", relayAddr)
+				log.Infof("Published zap receipt to "+
+				    "relay %s", relayAddr)
 			}
 			relay.Close()
 		}(relayAddr)
@@ -83,7 +55,7 @@ func publishZapReceipt(zapReceipt *zapReceipt) {
 }
 
 func (s *SettlementHandler) subscribeToInvoiceRpc(ctx context.Context,
-	rHash []byte, comment string, zapReceipt *zapReceipt) error {
+    rHash []byte, comment string, zapReceipt *zapReceipt) error {
 
 	stream, err := s.lndClient.SubscribeInvoices(
 		ctx, &lnrpc.InvoiceSubscription{},
@@ -109,7 +81,10 @@ func (s *SettlementHandler) subscribeToInvoiceRpc(ctx context.Context,
 				)
 				if zapReceipt != nil && s.nsec != "" {
 					zapReceipt.event.CreatedAt = nostr.Timestamp(invoice.SettleDate)
-					zapReceipt.event.Tags = append(zapReceipt.event.Tags, nostr.Tag{"preimage", hex.EncodeToString(invoice.RPreimage)})
+					zapReceipt.event.Tags = append(
+						zapReceipt.event.Tags,
+						nostr.Tag{"preimage",
+							hex.EncodeToString(invoice.RPreimage)})
 					zapReceipt.event.Sign(s.nsec)
 					log.Infof("Publishing zap receipt: %+v", zapReceipt.event)
 					go publishZapReceipt(zapReceipt)

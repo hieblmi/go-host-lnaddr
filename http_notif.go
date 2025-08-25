@@ -39,9 +39,9 @@ type httpNotificator struct {
 	BodyTemplate string
 }
 
-var _ notificator = (*httpNotificator)(nil)
+var _ notifier = (*httpNotificator)(nil)
 
-func NewHttpNotificator(cfg notificatorConfig) *httpNotificator {
+func NewHttpNotificator(cfg notifierConfig) *httpNotificator {
 	return &httpNotificator{
 		URL:          cfg.Params["Target"],
 		Method:       cfg.Params["Method"],

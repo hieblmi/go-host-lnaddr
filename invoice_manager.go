@@ -40,7 +40,9 @@ func NewInvoiceManager(cfg *InvoiceManagerConfig) *InvoiceManager {
 	}
 }
 
-func (m *InvoiceManager) processZapRequest(zapRequest []string, msat int, w http.ResponseWriter) *zapReceipt {
+func (m *InvoiceManager) processZapRequest(zapRequest []string,
+	mSat int, w http.ResponseWriter) *zapReceipt {
+
 	e := nostr.Event{}
 	err := e.UnmarshalJSON([]byte(zapRequest[0]))
 	if err != nil {
@@ -59,11 +61,14 @@ func (m *InvoiceManager) processZapRequest(zapRequest []string, msat int, w http
 		badRequestError(w, "No nostr tags")
 		return nil
 	}
-	tp := []string{}
-	tP := []string{}
-	te := []string{}
-	relays := []string{}
-	ta := []string{}
+
+	var (
+		tp     []string
+		tP     []string
+		te     []string
+		relays []string
+		ta     []string
+	)
 	for _, t := range e.Tags {
 		if len(t) > 0 {
 			if t[0] == "p" {
@@ -75,11 +80,16 @@ func (m *InvoiceManager) processZapRequest(zapRequest []string, msat int, w http
 			if t[0] == "amount" {
 				amount, err := strconv.Atoi(t[1])
 				if err != nil {
-					badRequestError(w, "Invalid amount tag: %s", t[1])
+					badRequestError(w, "Invalid amount "+
+						"tag: %s", t[1])
+
 					return nil
 				}
-				if amount != msat {
-					badRequestError(w, "Incorrect amount: %d expected %d", amount, msat)
+				if amount != mSat {
+					badRequestError(w, "Incorrect "+
+						"amount: %d expected %d",
+						amount, mSat)
+
 					return nil
 				}
 			}
@@ -118,10 +128,20 @@ func (m *InvoiceManager) processZapRequest(zapRequest []string, msat int, w http
 	if len(tP) > 0 {
 		receiptTags = append(receiptTags, nostr.Tag{"P", tP[0]})
 	}
-	return &zapReceipt{event: nostr.Event{Kind: nostr.KindZap, Tags: receiptTags}, relays: relays, description: string(description)}
+
+	return &zapReceipt{
+		event: nostr.Event{
+			Kind: nostr.KindZap,
+			Tags: receiptTags,
+		},
+		relays:      relays,
+		description: string(description),
+	}
 }
 
-func (m *InvoiceManager) handleInvoiceCreation(config ServerConfig) http.HandlerFunc {
+func (m *InvoiceManager) handleInvoiceCreation(
+	config ServerConfig) http.HandlerFunc {
+
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.Header().Set("Access-Control-Allow-Origin", "*")
@@ -142,7 +162,9 @@ func (m *InvoiceManager) handleInvoiceCreation(config ServerConfig) http.Handler
 			return
 		}
 
-		if mSat < config.MinSendableMsat || mSat > config.MaxSendableMsat {
+		if mSat < config.MinSendableMsat ||
+			mSat > config.MaxSendableMsat {
+
 			badRequestError(w, "Wrong amount. Amount needs to "+
 				"be in between [%d,%d] msat",
 				config.MinSendableMsat, config.MaxSendableMsat)
@@ -171,6 +193,7 @@ func (m *InvoiceManager) handleInvoiceCreation(config ServerConfig) http.Handler
 			if zapReceipt == nil {
 				return
 			}
+
 			metadata = zapReceipt.description
 		}
 
@@ -191,7 +214,10 @@ func (m *InvoiceManager) handleInvoiceCreation(config ServerConfig) http.Handler
 		}
 
 		if zapReceipt != nil {
-			zapReceipt.event.Tags = append(zapReceipt.event.Tags, nostr.Tag{"bolt11", bolt11})
+			zapReceipt.event.Tags = append(
+				zapReceipt.event.Tags,
+				nostr.Tag{"bolt11", bolt11},
+			)
 		}
 
 		invoice := Invoice{

@@ -13,9 +13,9 @@ type telegramNotificator struct {
 	MinAmount uint64
 }
 
-var _ notificator = (*telegramNotificator)(nil)
+var _ notifier = (*telegramNotificator)(nil)
 
-func NewTelegramNotificator(cfg notificatorConfig) *telegramNotificator {
+func NewTelegramNotificator(cfg notifierConfig) *telegramNotificator {
 	chatId, _ := strconv.ParseInt(cfg.Params["ChatId"], 10, 64)
 	return &telegramNotificator{
 		ChatId:    chatId,
@@ -24,9 +24,12 @@ func NewTelegramNotificator(cfg notificatorConfig) *telegramNotificator {
 	}
 }
 
-func (t *telegramNotificator) Notify(amount uint64, comment string) (err error) {
+func (t *telegramNotificator) Notify(amount uint64,
+	comment string) (err error) {
+
 	if amount < t.MinAmount {
-		return fmt.Errorf("amount is too small, required %d got %d", t.MinAmount, amount)
+		return fmt.Errorf("amount is too small, required %d got %d",
+			t.MinAmount, amount)
 	}
 	if comment != "" {
 		comment = fmt.Sprintf("Sender said: \"%s\"", comment)
@@ -36,8 +39,9 @@ func (t *telegramNotificator) Notify(amount uint64, comment string) (err error) 
 		log.Warnf("Couldn't create telegram bot api")
 		return err
 	}
-	body := fmt.Sprintf("Subject: %s\n\nYou've received %d sats to your lightning address. %s",
-		"New lightning address payment", amount, comment)
+	body := fmt.Sprintf("Subject: lnaddress payment\n\nYou've "+
+		"received %d sats to your lightning address. %s", amount,
+		comment)
 
 	tgMessage := tgbotapi.NewMessage(t.ChatId, body)
 	_, err = tgBot.Send(tgMessage)
