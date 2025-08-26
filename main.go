@@ -10,8 +10,10 @@ import (
 	baselog "log"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
 
+	"github.com/BurntSushi/toml"
 	"github.com/MadAppGang/httplog"
 	"github.com/btcsuite/btclog"
 	"github.com/btcsuite/btcutil/bech32"
@@ -27,25 +29,25 @@ import (
 )
 
 type ServerConfig struct {
-	RPCHost             string
-	InvoiceMacaroonPath string
-	TLSCertPath         string
-	WorkingDir          string
-	ExternalURL         string
-	ListAllURLs         bool
-	LightningAddresses  []string
-	MinSendableMsat     int
-	MaxSendableMsat     int
-	MaxCommentLength    int
-	Tag                 string
-	Metadata            [][]string
-	Thumbnail           string
-	SuccessMessage      string
-	InvoiceCallback     string
-	AddressServerPort   int
-	Nostr               *NostrConfig
-	Notifiers           []notifier.Config
-	Zaps                *ZapsConfig
+	RPCHost             string            `json:"RPCHost" toml:"RPCHost"`
+	InvoiceMacaroonPath string            `json:"InvoiceMacaroonPath" toml:"InvoiceMacaroonPath"`
+	TLSCertPath         string            `json:"TLSCertPath" toml:"TLSCertPath"`
+	WorkingDir          string            `json:"WorkingDir" toml:"WorkingDir"`
+	ExternalURL         string            `json:"ExternalURL" toml:"ExternalURL"`
+	ListAllURLs         bool              `json:"ListAllURLs" toml:"ListAllURLs"`
+	LightningAddresses  []string          `json:"LightningAddresses" toml:"LightningAddresses"`
+	MinSendableMsat     int               `json:"MinSendableMsat" toml:"MinSendableMsat"`
+	MaxSendableMsat     int               `json:"MaxSendableMsat" toml:"MaxSendableMsat"`
+	MaxCommentLength    int               `json:"MaxCommentLength" toml:"MaxCommentLength"`
+	Tag                 string            `json:"Tag" toml:"Tag"`
+	Metadata            [][]string        `json:"Metadata" toml:"Metadata"`
+	Thumbnail           string            `json:"Thumbnail" toml:"Thumbnail"`
+	SuccessMessage      string            `json:"SuccessMessage" toml:"SuccessMessage"`
+	InvoiceCallback     string            `json:"InvoiceCallback" toml:"InvoiceCallback"`
+	AddressServerPort   int               `json:"AddressServerPort" toml:"AddressServerPort"`
+	Nostr               *NostrConfig      `json:"Nostr" toml:"Nostr"`
+	Notifiers           []notifier.Config `json:"Notificators" toml:"Notificators"`
+	Zaps                *ZapsConfig       `json:"Zaps" toml:"Zaps"`
 }
 
 type LNUrlPay struct {
@@ -80,8 +82,8 @@ var (
 )
 
 type NostrConfig struct {
-	Names  map[string]string   `json:"names"`
-	Relays map[string][]string `json:"relays"`
+	Names  map[string]string   `json:"names" toml:"names"`
+	Relays map[string][]string `json:"relays" toml:"relays"`
 }
 
 type ZapsConfig struct {
@@ -95,6 +97,7 @@ func main() {
 	)
 	gk := flag.Bool("genkey", false, "Generate nostr keypair for zaps")
 	flag.Parse()
+
 	if *gk {
 		sk := nostr.GeneratePrivateKey()
 		pk, _ := nostr.GetPublicKey(sk)
@@ -110,9 +113,20 @@ func main() {
 	}
 
 	config := ServerConfig{}
-	err = json.Unmarshal(configBytes, &config)
-	if err != nil {
-		baselog.Fatalf("cannot decode config JSON %v", err)
+	ext := strings.ToLower(filepath.Ext(*c))
+	switch ext {
+	case ".toml", ".tml":
+		if err := toml.Unmarshal(configBytes, &config); err != nil {
+			baselog.Fatalf("cannot decode config TOML: %v", err)
+		}
+
+	case ".json":
+		if err := json.Unmarshal(configBytes, &config); err != nil {
+			baselog.Fatalf("cannot decode config JSON: %v", err)
+		}
+
+	default:
+		baselog.Fatalf("unknown config file extension '%s'", ext)
 	}
 
 	workingDir := config.WorkingDir
