@@ -46,7 +46,7 @@ type ServerConfig struct {
 	InvoiceCallback     string            `json:"InvoiceCallback" toml:"InvoiceCallback"`
 	AddressServerPort   int               `json:"AddressServerPort" toml:"AddressServerPort"`
 	Nostr               *NostrConfig      `json:"Nostr" toml:"Nostr"`
-	Notifiers           []notifier.Config `json:"Notificators" toml:"Notificators"`
+	Notifiers           []notifier.Config `json:"Notifiers" toml:"Notifiers"`
 	Zaps                *ZapsConfig       `json:"Zaps" toml:"Zaps"`
 }
 

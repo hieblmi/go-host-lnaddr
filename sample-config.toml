@@ -29,20 +29,20 @@ AddressServerPort = 9990
 Npub = "npub1..."
 Nsec = "nsec1..."
 
-[[Notificators]]
+[[Notifiers]]
 Type = "mail"
 MinAmount = 1000
-  [Notificators.Params]
+  [Notifiers.Params]
   From = "tips@sendmesats.com"
   Target = "username@example.com"
   SmtpServer = "smtp.sendmesats.com:587"
   Login = "tips@sendmesats.com"
   Password = "somerandompassword"
 
-[[Notificators]]
+[[Notifiers]]
 Type = "telegram"
 MinAmount = 1000
-  [Notificators.Params]
+  [Notifiers.Params]
   ChatId = "1234567890"
   Token = "TelegramToken"
 

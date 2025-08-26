@@ -40,7 +40,7 @@
     "Npub": "npub1...",
     "Nsec": "nsec1..."
   },
-  "Notificators": [
+  "Notifiers": [
     {
       "Type": "mail",
       "MinAmount": 1000,
