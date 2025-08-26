@@ -1,4 +1,4 @@
-package main
+package notifier
 
 import (
 	"fmt"
@@ -6,7 +6,8 @@ import (
 	"net/smtp"
 )
 
-type mailNotificator struct {
+type MailNotifier struct {
+	Cfg       Config
 	To        string
 	From      string
 	Server    string
@@ -15,10 +16,11 @@ type mailNotificator struct {
 	MinAmount uint64
 }
 
-var _ notifier = (*mailNotificator)(nil)
+var _ Notifier = (*MailNotifier)(nil)
 
-func NewMailNotificator(cfg notifierConfig) *mailNotificator {
-	return &mailNotificator{
+func NewMailNotifier(cfg Config) *MailNotifier {
+	return &MailNotifier{
+		Cfg:       cfg,
 		To:        cfg.Params["Target"],
 		From:      cfg.Params["From"],
 		Server:    cfg.Params["SmtpServer"],
@@ -28,7 +30,7 @@ func NewMailNotificator(cfg notifierConfig) *mailNotificator {
 	}
 }
 
-func (m *mailNotificator) Notify(amount uint64, comment string) (err error) {
+func (m *MailNotifier) Notify(amount uint64, comment string) (err error) {
 	if amount < m.MinAmount {
 		return fmt.Errorf("amount is too small, required %d got %d",
 			m.MinAmount, amount)
@@ -55,6 +57,6 @@ func (m *mailNotificator) Notify(amount uint64, comment string) (err error) {
 	return
 }
 
-func (m *mailNotificator) Target() string {
+func (m *MailNotifier) Target() string {
 	return fmt.Sprintf("%s => %s", m.From, m.To)
 }

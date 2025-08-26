@@ -15,6 +15,7 @@ import (
 	"github.com/MadAppGang/httplog"
 	"github.com/btcsuite/btclog"
 	"github.com/btcsuite/btcutil/bech32"
+	"github.com/hieblmi/go-host-lnaddr/notifier"
 	"github.com/lightningnetwork/lnd/lnrpc"
 	"github.com/lightningnetwork/lnd/macaroons"
 	"github.com/nbd-wtf/go-nostr"
@@ -43,7 +44,7 @@ type ServerConfig struct {
 	InvoiceCallback     string
 	AddressServerPort   int
 	Nostr               *NostrConfig
-	Notifiers           []notifierConfig
+	Notifiers           []notifier.Config
 	Zaps                *ZapsConfig
 }
 
@@ -170,7 +171,7 @@ func main() {
 
 	setupHandlerPerAddress(config)
 	setupNostrHandlers(config.Nostr)
-	setupNotifiers(config)
+	notifier.SetupNotifiers(config.Notifiers, log)
 	setupIndexHandler(config)
 
 	http.HandleFunc("/invoice/", useLogger(
@@ -348,12 +349,12 @@ func metadataToString(config ServerConfig) (string, error) {
 }
 
 func thumbnailToMetadata(thumbnailPath string) ([]string, error) {
-	bytes, err := os.ReadFile(thumbnailPath)
+	fileBytes, err := os.ReadFile(thumbnailPath)
 	if err != nil {
 		return nil, err
 	}
 
-	encoding := http.DetectContentType(bytes)
+	encoding := http.DetectContentType(fileBytes)
 	switch encoding {
 	case "image/jpeg":
 		encoding = "image/jpeg;base64"
@@ -363,7 +364,7 @@ func thumbnailToMetadata(thumbnailPath string) ([]string, error) {
 		return nil, fmt.Errorf("Unsupported encodeing %s of "+
 			"thumbnail %s.\n", encoding, thumbnailPath)
 	}
-	encodedThumbnail := base64.StdEncoding.EncodeToString(bytes)
+	encodedThumbnail := base64.StdEncoding.EncodeToString(fileBytes)
 
 	return []string{encoding, encodedThumbnail}, nil
 }

@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/hieblmi/go-host-lnaddr/notifier"
 	"github.com/lightningnetwork/lnd/lnrpc"
 	"github.com/nbd-wtf/go-nostr"
 )
@@ -17,7 +18,7 @@ type SettlementHandler struct {
 }
 
 func NewSettlementHandler(
-    lndClient lnrpc.LightningClient, nsec string) *SettlementHandler {
+	lndClient lnrpc.LightningClient, nsec string) *SettlementHandler {
 
 	return &SettlementHandler{
 		lndClient: lndClient,
@@ -43,19 +44,23 @@ func publishZapReceipt(zapReceipt *zapReceipt) {
 			err = relay.Publish(zapctx, zapReceipt.event)
 			if err != nil {
 				log.Warnf("Error publishing zap receipt to "+
-				    "relay %s: %s", relayAddr, err)
+					"relay %s: %s", relayAddr, err)
 			} else {
 				log.Infof("Published zap receipt to "+
-				    "relay %s", relayAddr)
+					"relay %s", relayAddr)
 			}
-			relay.Close()
+			err = relay.Close()
+			if err != nil {
+				log.Warnf("Error closing relay %s: %s",
+					relayAddr, err)
+			}
 		}(relayAddr)
 	}
 	wg.Wait()
 }
 
 func (s *SettlementHandler) subscribeToInvoiceRpc(ctx context.Context,
-    rHash []byte, comment string, zapReceipt *zapReceipt) error {
+	rHash []byte, comment string, zapReceipt *zapReceipt) error {
 
 	stream, err := s.lndClient.SubscribeInvoices(
 		ctx, &lnrpc.InvoiceSubscription{},
@@ -76,7 +81,7 @@ func (s *SettlementHandler) subscribeToInvoiceRpc(ctx context.Context,
 			}
 
 			if bytes.Equal(invoice.RHash, rHash) {
-				broadcastNotification(
+				notifier.BroadcastNotification(
 					uint64(invoice.AmtPaidSat), comment,
 				)
 				if zapReceipt != nil && s.nsec != "" {
@@ -85,9 +90,16 @@ func (s *SettlementHandler) subscribeToInvoiceRpc(ctx context.Context,
 						zapReceipt.event.Tags,
 						nostr.Tag{"preimage",
 							hex.EncodeToString(invoice.RPreimage)})
-					zapReceipt.event.Sign(s.nsec)
-					log.Infof("Publishing zap receipt: %+v", zapReceipt.event)
-					go publishZapReceipt(zapReceipt)
+					err = zapReceipt.event.Sign(s.nsec)
+					if err != nil {
+						log.Warnf("Error signing zap "+
+							"receipt: %s", err)
+					} else {
+						log.Infof("Publishing zap "+
+							"receipt: %+v",
+							zapReceipt.event)
+						go publishZapReceipt(zapReceipt)
+					}
 				}
 			}
 		}
