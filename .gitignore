@@ -16,4 +16,5 @@
 
 # Local development files
 ./dev-config.json
+./dev-config.toml
 .idea

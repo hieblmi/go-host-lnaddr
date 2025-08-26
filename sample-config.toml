@@ -1,0 +1,56 @@
+RPCHost = "localhost:10009"
+InvoiceMacaroonPath = "/lnd/macaroonpath/invoices.macaroon"
+TLSCertPath = "/home/alice/.lnd/tls.cert"
+WorkingDir = "/home/alice/.go-host-lnaddr"
+ExternalURL = "https://sendmesats.com"
+ListAllURLs = true
+LightningAddresses = ["tips@sendmesats.com"]
+MinSendableMsat = 1000
+MaxSendableMsat = 100000000
+MaxCommentLength = 150
+Tag = "payRequest"
+Metadata = [
+  ["text/plain", "Welcome to sendmesats.com"],
+  ["text/identifier", "tips@sendmesats.com"],
+]
+Thumbnail = "/path/to/thumbnail.[jpeg|png]"
+SuccessMessage = "Thank you!"
+InvoiceCallback = "https://sendmesats.com/invoice/"
+AddressServerPort = 9990
+
+[Nostr]
+  [Nostr.names]
+  myNostrUsername = "npub1h....."
+
+  [Nostr.relays]
+  "b9b....." = ["wss://my.relay.com"]
+
+[Zaps]
+Npub = "npub1..."
+Nsec = "nsec1..."
+
+[[Notifiers]]
+Type = "mail"
+MinAmount = 1000
+  [Notifiers.Params]
+  From = "tips@sendmesats.com"
+  Target = "username@example.com"
+  SmtpServer = "smtp.sendmesats.com:587"
+  Login = "tips@sendmesats.com"
+  Password = "somerandompassword"
+
+[[Notifiers]]
+Type = "telegram"
+MinAmount = 1000
+  [Notifiers.Params]
+  ChatId = "1234567890"
+  Token = "TelegramToken"
+
+[[Notificators]]
+Type = "http"
+MinAmount = 1000
+  [Notificators.Params]
+  Target = "https://sendmesats.com/notify?amount={{.Amount}}"
+  Method = "POST"
+  Encoding = "application/x-www-form-urlencoded"
+  BodyTemplate = "message={{.Message}}&title=New+payment+received"

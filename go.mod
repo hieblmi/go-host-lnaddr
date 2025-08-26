@@ -3,6 +3,7 @@ module github.com/hieblmi/go-host-lnaddr
 go 1.24.6
 
 require (
+	github.com/BurntSushi/toml v1.3.2
 	github.com/MadAppGang/httplog v1.3.0
 	github.com/btcsuite/btclog v0.0.0-20170628155309-84c8d2346e9f
 	github.com/btcsuite/btcutil v0.0.0-20190425235716-9e5f4b9a998d

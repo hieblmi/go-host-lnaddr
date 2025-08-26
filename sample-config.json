@@ -1,12 +1,12 @@
 {
   "RPCHost": "localhost:10009",
-  "InvoiceMacaroonPath": "/home/alice/.lnd/data/chain/bitcoin/mainnet/invoices.macaroon",
+  "InvoiceMacaroonPath": "/lnd/macaroonpath/invoices.macaroon",
   "TLSCertPath": "/home/alice/.lnd/tls.cert",
   "WorkingDir": "/home/alice/.go-host-lnaddr",
-  "ExternalURL": "https://allmysats.com",
+  "ExternalURL": "https://sendmesats.com",
   "ListAllURLs": true,
   "LightningAddresses": [
-    "tips@allmysats.com"
+    "tips@sendmesats.com"
   ],
   "MinSendableMsat": 1000,
   "MaxSendableMsat": 100000000,
@@ -15,16 +15,16 @@
   "Metadata": [
     [
       "text/plain",
-      "Welcome to allmysats.com"
+      "Welcome to sendmesats.com"
     ],
     [
       "text/identifier",
-      "tips@allmysats.com"
+      "tips@sendmesats.com"
     ]
   ],
   "Thumbnail": "/path/to/thumbnail.[jpeg|png]",
   "SuccessMessage": "Thank you!",
-  "InvoiceCallback": "https://allmysats.com/invoice/",
+  "InvoiceCallback": "https://sendmesats.com/invoice/",
   "AddressServerPort": 9990,
   "Nostr": {
     "names": {
@@ -40,15 +40,15 @@
     "Npub": "npub1...",
     "Nsec": "nsec1..."
   },
-  "Notificators": [
+  "Notifiers": [
     {
       "Type": "mail",
       "MinAmount": 1000,
       "Params": {
-        "From": "tips@allmysats.com",
+        "From": "tips@sendmesats.com",
         "Target": "username@example.com",
-        "SmtpServer": "smtp.allmysats.com:587",
-        "Login": "tips@allmysats.com",
+        "SmtpServer": "smtp.sendmesats.com:587",
+        "Login": "tips@sendmesats.com",
         "Password": "somerandompassword"
       }
     },
@@ -64,7 +64,7 @@
       "Type": "http",
       "MinAmount": 1000,
       "Params": {
-        "Target": "https://example.com/notify?amount={{.Amount}}",
+        "Target": "https://sendmesats.com/notify?amount={{.Amount}}",
         "Method": "POST",
         "Encoding": "application/x-www-form-urlencoded",
         "BodyTemplate": "message={{.Message}}&title=New+payment+received"
