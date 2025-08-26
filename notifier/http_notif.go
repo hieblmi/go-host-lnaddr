@@ -1,4 +1,4 @@
-package main
+package notifier
 
 import (
 	"bytes"
@@ -32,17 +32,19 @@ const (
 	EncodingJson encoding = "application/json"
 )
 
-type httpNotificator struct {
+type HttpNotifier struct {
+	Cfg          Config
 	URL          string
 	Method       string
 	Encoding     encoding
 	BodyTemplate string
 }
 
-var _ notifier = (*httpNotificator)(nil)
+var _ Notifier = (*HttpNotifier)(nil)
 
-func NewHttpNotificator(cfg notifierConfig) *httpNotificator {
-	return &httpNotificator{
+func NewHttpNotifier(cfg Config) *HttpNotifier {
+	return &HttpNotifier{
+		Cfg:          cfg,
 		URL:          cfg.Params["Target"],
 		Method:       cfg.Params["Method"],
 		Encoding:     encoding(cfg.Params["Encoding"]),
@@ -50,7 +52,7 @@ func NewHttpNotificator(cfg notifierConfig) *httpNotificator {
 	}
 }
 
-func (h *httpNotificator) Notify(amount uint64, comment string) error {
+func (h *HttpNotifier) Notify(amount uint64, comment string) error {
 	bodyData := &struct {
 		Amount  uint64
 		Message string
@@ -116,6 +118,6 @@ func (h *httpNotificator) Notify(amount uint64, comment string) error {
 	return nil
 }
 
-func (h *httpNotificator) Target() string {
+func (h *HttpNotifier) Target() string {
 	return h.URL
 }

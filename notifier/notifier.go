@@ -1,40 +1,50 @@
-package main
+package notifier
 
-type notifierConfig struct {
+import "github.com/btcsuite/btclog"
+
+var log btclog.Logger
+
+type Config struct {
 	Type      string
 	MinAmount uint64
 	Params    map[string]string
 }
 
-type notifier interface {
+type Notifier interface {
 	Notify(amount uint64, comment string) error
 	Target() string
 }
 
-var notifiers []notifier
+var notifiers []Notifier
 
-func setupNotifiers(cfg ServerConfig) {
-	for _, c := range cfg.Notifiers {
+func SetupNotifiers(notifierConfigs []Config, logger btclog.Logger) {
+
+	log = logger
+
+	for _, c := range notifierConfigs {
 		switch c.Type {
 		case "mail":
 			notifiers = append(
-				notifiers, NewMailNotificator(c),
+				notifiers, NewMailNotifier(c),
 			)
 
 		case "http":
 			notifiers = append(
-				notifiers, NewHttpNotificator(c),
+				notifiers, NewHttpNotifier(c),
 			)
 
 		case "telegram":
 			notifiers = append(
-				notifiers, NewTelegramNotificator(c),
+				notifiers, NewTelegramNotifier(c),
 			)
+
+		default:
+			log.Infof("Unknown notifier type: %s", c.Type)
 		}
 	}
 }
 
-func broadcastNotification(amount uint64, comment string) {
+func BroadcastNotification(amount uint64, comment string) {
 	log.Infof("Received %d sats with comment: %s", amount, comment)
 	for _, n := range notifiers {
 		err := n.Notify(amount, comment)

@@ -1,4 +1,4 @@
-package main
+package notifier
 
 import (
 	"fmt"
@@ -7,24 +7,26 @@ import (
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
 )
 
-type telegramNotificator struct {
+type TelegramNotifier struct {
+	Cfg       Config
 	ChatId    int64
 	Token     string
 	MinAmount uint64
 }
 
-var _ notifier = (*telegramNotificator)(nil)
+var _ Notifier = (*TelegramNotifier)(nil)
 
-func NewTelegramNotificator(cfg notifierConfig) *telegramNotificator {
+func NewTelegramNotifier(cfg Config) *TelegramNotifier {
 	chatId, _ := strconv.ParseInt(cfg.Params["ChatId"], 10, 64)
-	return &telegramNotificator{
+	return &TelegramNotifier{
+		Cfg:       cfg,
 		ChatId:    chatId,
 		Token:     cfg.Params["Token"],
 		MinAmount: cfg.MinAmount,
 	}
 }
 
-func (t *telegramNotificator) Notify(amount uint64,
+func (t *TelegramNotifier) Notify(amount uint64,
 	comment string) (err error) {
 
 	if amount < t.MinAmount {
@@ -49,6 +51,6 @@ func (t *telegramNotificator) Notify(amount uint64,
 	return err
 }
 
-func (t *telegramNotificator) Target() string {
+func (t *TelegramNotifier) Target() string {
 	return fmt.Sprintf("ChatId: %d", t.ChatId)
 }
