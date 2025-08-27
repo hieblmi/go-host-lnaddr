@@ -21,68 +21,66 @@ Lightning wallets like [Zeus](https://github.com/ZeusLN/zeus), [Blixt](https://b
 go install github.com/hieblmi/go-host-lnaddr@latest
 ```
 
-### Configuration config.json
-Below is a minimal, annotated example. Adjust paths/domains to your setup.
+### Configuration (TOML)
+Below is a minimal TOML example. Adjust paths/domains to your setup. A JSON configuration is also supported if you prefer.
 
-```
-{
-  "RPCHost": "https://127.0.0.1:8080",             // LND REST endpoint
-  "InvoiceMacaroonPath": "/home/user/.lnd/invoice.macaroon",
-  "TLSCertPath": "/home/user/.lnd/tls.cert",       // used to trust LND's REST TLS
+```toml
+RPCHost = "localhost:10009"
+InvoiceMacaroonPath = "/lnd/macaroonpath/invoices.macaroon"
+TLSCertPath = "/home/alice/.lnd/tls.cert"
+WorkingDir = "/home/alice/.go-host-lnaddr"
+ExternalURL = "https://sendmesats.com"
+ListAllURLs = true
+LightningAddresses = ["tips@sendmesats.com"]
+MinSendableMsat = 1000
+MaxSendableMsat = 100000000
+MaxCommentLength = 150
+Tag = "payRequest"
+Metadata = [
+  ["text/plain", "Welcome to sendmesats.com"],
+  ["text/identifier", "tips@sendmesats.com"],
+]
+Thumbnail = "/path/to/thumbnail.[jpeg|png]"
+SuccessMessage = "Thank you!"
+InvoiceCallback = "https://sendmesats.com/invoice/"
+AddressServerPort = 9990
 
-  "LightningAddresses": ["thats@satswellspent.com"], // you can host multiple addresses
+[Nostr]
+  [Nostr.names]
+  myNostrUsername = "npub1h....."
 
-  "MinSendable": 1000,                               // msat minimum exposed via LNURLp
-  "MaxSendable": 100000000,                          // msat maximum exposed via LNURLp
-  "CommentAllowed": 140,                             // 0 disables comments; otherwise max characters
-  "Tag": "payRequest",                              // LNURLp tag (usually payRequest)
-  "Metadata": [["text/plain","Welcome to satswellspent.com"],["text/identifier","thats@satswellspent.com"]],
-  "Thumbnail": "/path/to/thumbnail.png",           // optional: image for some wallets
-  "SuccessMessage": "Thank you!",                   // shown by wallets after payment
+  [Nostr.relays]
+  "b9b....." = ["wss://my.relay.com"]
 
-  // This service will expose: https://yourdomain/.well-known/lnurlp/<username>
-  // Your reverse proxy should route that to AddressServerPort below.
-  "InvoiceCallback": "https://yourdomain.com/invoice/", // callback base used in LNURLp
-  "AddressServerPort": 9990,                               // local port your reverse proxy targets
+[Zaps]
+Npub = "npub1..."
+Nsec = "nsec1..."
 
-  // Nostr (optional): see NIP-05 example for structure
-  "Nostr": {
-    "names": {"thats": "npub1..."},
-    "relays": {"npub1...": ["wss://relay.example"]}
-  },
+[[Notificators]]
+Type = "mail"
+MinAmount = 1000
+  [Notificators.Params]
+  From = "tips@sendmesats.com"
+  Target = "username@example.com"
+  SmtpServer = "smtp.sendmesats.com:587"
+  Login = "tips@sendmesats.com"
+  Password = "somerandompassword"
 
-  // Zaps (optional): DO NOT use your main keys. Generate with: go-host-lnaddr -genkey
-  "Zaps": {"Npub": "npub1...", "Nsec": "nsec1..."},
+[[Notificators]]
+Type = "telegram"
+MinAmount = 1000
+  [Notificators.Params]
+  ChatId = "1234567890"
+  Token = "TelegramToken"
 
-  // Notifications: one or more entries. MinAmount is in sats and acts as a threshold filter.
-  "Notificators": [
-    {
-      "Type": "mail",
-      "Target": "username@example.com",
-      "MinAmount": 1000,
-      "Params": {
-        "From": "thats@satswellspent.com",
-        "SmtpServer": "smtp.satswellspent.com:587",
-        "Login": "thats@satswellspent.com",
-        "Password": "somerandompassword"
-      }
-    },
-    {
-      "Type": "telegram",
-      "MinAmount": 1000,
-      "Params": {"ChatId": "123456789", "Token": "123:bot-token"}
-    },
-    {
-      "Type": "http",
-      "Params": {
-        "Target": "https://example.com/notify/{{.Amount}}/{{.Message}}",
-        "Method": "POST",                           // GET or POST
-        "Encoding": "application/x-www-form-urlencoded", // or "application/json"
-        "BodyTemplate": "amount={{.Amount}}&message={{.Message}}"
-      }
-    }
-  ]
-}
+[[Notificators]]
+Type = "http"
+MinAmount = 1000
+  [Notificators.Params]
+  Target = "https://sendmesats.com/notify?amount={{.Amount}}"
+  Method = "POST"
+  Encoding = "application/x-www-form-urlencoded"
+  BodyTemplate = "message={{.Message}}&title=New+payment+received"
 ```
 
 Notes on Notificators:
@@ -94,9 +92,11 @@ Reverse proxy tip (example Nginx): proxy requests for
 /.well-known/lnurlp/* and /invoice/* to http://127.0.0.1:9990 while serving your domain over HTTPS.
 
 ### Run
-```$GOBIN/go-host-lnaddr --config /path/to/config.json```
+```bash
+$GOBIN/go-host-lnaddr --config /path/to/config.toml
+```
 
-You can also run the binary you built via `go install` directly from your Go bin directory. A sample development configuration is provided in dev-config.json. A Dockerfile is included if you prefer containerized deployment; mount your config.json and TLS/macaroon files as needed.
+You can also run the binary you built via `go install` directly from your Go bin directory. Sample configurations are provided (sample-config.toml, dev-config.toml). JSON configuration files are also supported if you prefer using .json instead of .toml. If using Docker, mount your configuration file and TLS/macaroon files as needed.
 
 ## Notes
 This project is experimental. Feedback is welcome — please open an issue if you have questions or suggestions.
