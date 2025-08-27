@@ -23,7 +23,10 @@ type Writer struct {
 
 func (w *Writer) Write(b []byte) (int, error) {
 	if w.writer != nil {
-		w.writer.Write(b)
+		_, err := w.writer.Write(b)
+		if err != nil {
+			return 0, err
+		}
 	}
 	return len(b), nil
 }

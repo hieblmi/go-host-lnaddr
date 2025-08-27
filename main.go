@@ -26,6 +26,8 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"gopkg.in/macaroon.v2"
+
+	invoice "github.com/hieblmi/go-host-lnaddr/invoice"
 )
 
 type ServerConfig struct {
@@ -117,6 +119,7 @@ func main() {
 	if err != nil {
 		baselog.Fatalf("cannot get logger %v", err)
 	}
+	invoice.SetLogger(log)
 
 	if err := prepareZaps(config.Zaps); err != nil {
 		baselog.Fatalf("zaps configuration error: %v", err)
@@ -134,10 +137,10 @@ func main() {
 	}
 
 	lndClient := lnrpc.NewLightningClient(clientConn)
-	settlementHandler := NewSettlementHandler(lndClient, config.Zaps.Nsec)
+	settlementHandler := invoice.NewSettlementHandler(lndClient, config.Zaps.Nsec)
 
-	invoiceManager := NewInvoiceManager(
-		&InvoiceManagerConfig{
+	invoiceManager := invoice.NewInvoiceManager(
+		&invoice.InvoiceManagerConfig{
 			LndClient:         lndClient,
 			SettlementHandler: settlementHandler,
 		},
@@ -148,8 +151,19 @@ func main() {
 	notifier.SetupNotifiers(config.Notifiers, log)
 	setupIndexHandler(config)
 
+	// Precompute base metadata string once.
+	metadata, err := metadataToString(config)
+	if err != nil {
+		log.Warnf("Unable to convert metadata to string: %v", err)
+	}
+	payCfg := invoice.Config{
+		MinSendableMsat:  config.MinSendableMsat,
+		MaxSendableMsat:  config.MaxSendableMsat,
+		MaxCommentLength: config.MaxCommentLength,
+		SuccessMessage:   config.SuccessMessage,
+	}
 	http.HandleFunc("/invoice/", useLogger(
-		invoiceManager.handleInvoiceCreation(config),
+		invoiceManager.HandleInvoiceCreation(payCfg, metadata),
 	))
 	err = http.ListenAndServe(
 		fmt.Sprintf(":%d", config.AddressServerPort), nil,
@@ -313,6 +327,9 @@ func setupIndexHandler(config ServerConfig) {
 
 func metadataToString(config ServerConfig) (string, error) {
 	thumbnailMetadata, err := thumbnailToMetadata(config.Thumbnail)
+	if err != nil {
+		return "", err
+	}
 
 	if thumbnailMetadata != nil {
 		config.Metadata = append(config.Metadata, thumbnailMetadata)
@@ -346,16 +363,6 @@ func thumbnailToMetadata(thumbnailPath string) ([]string, error) {
 	return []string{encoding, encodedThumbnail}, nil
 }
 
-func badRequestError(w http.ResponseWriter, reason string,
-	args ...interface{}) {
-
-	w.WriteHeader(http.StatusBadRequest)
-	_ = json.NewEncoder(w).Encode(Error{
-		Status: "Error",
-		Reason: fmt.Sprintf(reason, args...),
-	})
-}
-
 // maxMsgRecvSize is the largest message our client will receive. We
 // set this to 200MiB atm.
 var (
@@ -377,7 +384,7 @@ func getClientConn(address, tlsCertPath, macaroonPath string) (*grpc.ClientConn,
 		macOption,
 	}
 
-	// TLS cannot be disabled, we'll always have a cert file to read.
+	// TLS cannot be disabled; we'll always have a cert file to read.
 	creds, err := credentials.NewClientTLSFromFile(tlsCertPath, "")
 	if err != nil {
 		return nil, err
