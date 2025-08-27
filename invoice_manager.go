@@ -6,13 +6,13 @@ import (
 	"encoding/json"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/lightningnetwork/lnd/lnrpc"
 	"github.com/nbd-wtf/go-nostr"
 )
 
-var TorProxyURL = "socks5://127.0.0.1:9050"
-
+// InvoiceManager coordinates invoice creation and related concerns.
 type InvoiceManager struct {
 	Cfg *InvoiceManagerConfig
 }
@@ -228,7 +228,7 @@ func (m *InvoiceManager) handleInvoiceCreation(
 				Message: config.SuccessMessage,
 			},
 		}
-		m.Cfg.SettlementHandler.subscribeToInvoiceRpc(
+		m.Cfg.SettlementHandler.subscribeInvoiceSettlements(
 			context.Background(), r_hash, comment, zapReceipt,
 		)
 		w.WriteHeader(http.StatusCreated)
@@ -245,8 +245,10 @@ func (m *InvoiceManager) MakeInvoice(params InvoiceParams) (string, []byte,
 		DescriptionHash: params.DescriptionHash,
 	}
 
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
 	resp, err := m.Cfg.LndClient.AddInvoice(
-		context.Background(), invoice,
+		ctx, invoice,
 	)
 	if err != nil {
 		return "", nil, err
