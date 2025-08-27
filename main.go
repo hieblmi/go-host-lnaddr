@@ -140,7 +140,7 @@ func main() {
 	settlementHandler := invoice.NewSettlementHandler(lndClient, config.Zaps.Nsec)
 
 	invoiceManager := invoice.NewInvoiceManager(
-		&invoice.InvoiceManagerConfig{
+		&invoice.ManagerConfig{
 			LndClient:         lndClient,
 			SettlementHandler: settlementHandler,
 		},
@@ -190,8 +190,7 @@ func useLogger(h http.HandlerFunc) http.HandlerFunc {
 func setupHandlerPerAddress(config ServerConfig) {
 	metadata, err := metadataToString(config)
 	if err != nil {
-		log.Errorf("failed to build metadata: %v", err)
-		return
+		log.Warnf("unable to build metadata: %v", err)
 	}
 	for _, addr := range config.LightningAddresses {
 		addr := strings.Split(addr, "@")[0]
