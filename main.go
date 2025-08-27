@@ -107,26 +107,9 @@ func main() {
 		return
 	}
 
-	configBytes, err := os.ReadFile(*c)
+	config, err := loadConfig(*c)
 	if err != nil {
-		baselog.Fatalf("cannot read config file '%s': %v", *c, err)
-	}
-
-	config := ServerConfig{}
-	ext := strings.ToLower(filepath.Ext(*c))
-	switch ext {
-	case ".toml", ".tml":
-		if err := toml.Unmarshal(configBytes, &config); err != nil {
-			baselog.Fatalf("cannot decode config TOML: %v", err)
-		}
-
-	case ".json":
-		if err := json.Unmarshal(configBytes, &config); err != nil {
-			baselog.Fatalf("cannot decode config JSON: %v", err)
-		}
-
-	default:
-		baselog.Fatalf("unknown config file extension '%s'", ext)
+		baselog.Fatalf("failed to load config: %v", err)
 	}
 
 	workingDir := config.WorkingDir
@@ -135,31 +118,8 @@ func main() {
 		baselog.Fatalf("cannot get logger %v", err)
 	}
 
-	if isZapsConfigured(config) {
-		_, sk, err := nip19.Decode(config.Zaps.Nsec)
-		if err != nil {
-			baselog.Fatalf("Error decoding private nostr zap "+
-				"key: %s", err)
-		}
-		pk, err := nostr.GetPublicKey(sk.(string))
-		if err != nil {
-			baselog.Fatalf("Can't get public nostr zap key from "+
-				"private key: %s", err)
-		}
-		npub, err := nip19.EncodePublicKey(pk)
-		if err != nil {
-			baselog.Fatalf("Error encoding public nostr zap "+
-				"key: %s", err)
-		}
-		if npub != config.Zaps.Npub {
-			baselog.Fatalf("Public nostr zap key in config is %s "+
-				"doesn't match the expected key %s, make "+
-				"sure you entered the correct key pair",
-				config.Zaps.Npub, npub)
-		}
-		// save keys hex-encoded
-		config.Zaps.Npub = pk
-		config.Zaps.Nsec = sk.(string)
+	if err := prepareZaps(config.Zaps); err != nil {
+		baselog.Fatalf("zaps configuration error: %v", err)
 	}
 
 	log.Infof("Starting lightning address server on port %v...",
@@ -216,6 +176,7 @@ func useLogger(h http.HandlerFunc) http.HandlerFunc {
 func setupHandlerPerAddress(config ServerConfig) {
 	metadata, err := metadataToString(config)
 	if err != nil {
+		log.Errorf("failed to build metadata: %v", err)
 		return
 	}
 	for _, addr := range config.LightningAddresses {
@@ -372,11 +333,13 @@ func thumbnailToMetadata(thumbnailPath string) ([]string, error) {
 	switch encoding {
 	case "image/jpeg":
 		encoding = "image/jpeg;base64"
+
 	case "image/png":
 		encoding = "image/png;base64"
+
 	default:
-		return nil, fmt.Errorf("Unsupported encodeing %s of "+
-			"thumbnail %s.\n", encoding, thumbnailPath)
+		return nil, fmt.Errorf("unsupported encoding %s of "+
+			"thumbnail %s", encoding, thumbnailPath)
 	}
 	encodedThumbnail := base64.StdEncoding.EncodeToString(fileBytes)
 
@@ -457,4 +420,70 @@ func readMacaroon(macPath string) (grpc.DialOption, error) {
 func isZapsConfigured(config ServerConfig) bool {
 	return config.Zaps != nil && config.Zaps.Npub != "" &&
 		config.Zaps.Nsec != ""
+}
+
+// loadConfig reads and unmarshals a JSON or TOML config into ServerConfig.
+func loadConfig(path string) (ServerConfig, error) {
+	configBytes, err := os.ReadFile(path)
+	if err != nil {
+		return ServerConfig{}, fmt.Errorf("cannot read config file "+
+			"'%s': %w", path, err)
+	}
+
+	config := ServerConfig{}
+	ext := strings.ToLower(filepath.Ext(path))
+	switch ext {
+	case ".toml", ".tml":
+		if err := toml.Unmarshal(configBytes, &config); err != nil {
+			return ServerConfig{}, fmt.Errorf("cannot decode "+
+				"config TOML: %w", err)
+		}
+
+	case ".json":
+		if err := json.Unmarshal(configBytes, &config); err != nil {
+			return ServerConfig{}, fmt.Errorf("cannot decode "+
+				"config JSON: %w", err)
+		}
+	default:
+		return ServerConfig{}, fmt.Errorf("unknown config file "+
+			"extension '%s'", ext)
+	}
+
+	return config, nil
+}
+
+// prepareZaps validates and normalizes the zaps config in-place. It decodes
+// bech32 npub/nsec into hex for internal use.
+func prepareZaps(z *ZapsConfig) error {
+	if z == nil || z.Npub == "" || z.Nsec == "" {
+		return nil
+	}
+
+	_, sk, err := nip19.Decode(z.Nsec)
+	if err != nil {
+		return fmt.Errorf("error decoding private nostr zap key: %w",
+			err)
+	}
+
+	pk, err := nostr.GetPublicKey(sk.(string))
+	if err != nil {
+		return fmt.Errorf("can't get public nostr zap key from "+
+			"private key: %w", err)
+	}
+	npub, err := nip19.EncodePublicKey(pk)
+	if err != nil {
+		return fmt.Errorf("error encoding public nostr zap "+
+			"key: %w", err)
+	}
+	if npub != z.Npub {
+		return fmt.Errorf("public nostr zap key in config is %s "+
+			"doesn't match the expected key %s, make sure you "+
+			"entered the correct key pair", z.Npub, npub)
+	}
+
+	// save keys hex-encoded
+	z.Npub = pk
+	z.Nsec = sk.(string)
+
+	return nil
 }

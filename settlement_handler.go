@@ -12,6 +12,8 @@ import (
 	"github.com/nbd-wtf/go-nostr"
 )
 
+// SettlementHandler listens for invoice settlement and triggers side effects
+// like notifications and optional Nostr zap receipts.
 type SettlementHandler struct {
 	lndClient lnrpc.LightningClient
 	nsec      string
@@ -59,7 +61,9 @@ func publishZapReceipt(zapReceipt *zapReceipt) {
 	wg.Wait()
 }
 
-func (s *SettlementHandler) subscribeToInvoiceRpc(ctx context.Context,
+// subscribeInvoiceSettlements subscribes to invoice updates and triggers side
+// effects.
+func (s *SettlementHandler) subscribeInvoiceSettlements(ctx context.Context,
 	rHash []byte, comment string, zapReceipt *zapReceipt) error {
 
 	stream, err := s.lndClient.SubscribeInvoices(
@@ -73,7 +77,9 @@ func (s *SettlementHandler) subscribeToInvoiceRpc(ctx context.Context,
 		for {
 			invoice, err := stream.Recv()
 			if err != nil {
-				log.Warnf("invoice stream error")
+				log.Warnf("invoice stream error: %v", err)
+
+				return
 			}
 
 			if invoice.State != lnrpc.Invoice_SETTLED {
