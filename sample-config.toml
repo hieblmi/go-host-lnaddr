@@ -46,10 +46,10 @@ MinAmount = 1000
   ChatId = "1234567890"
   Token = "TelegramToken"
 
-[[Notificators]]
+[[Notifiers]]
 Type = "http"
 MinAmount = 1000
-  [Notificators.Params]
+  [Notifiers.Params]
   Target = "https://sendmesats.com/notify?amount={{.Amount}}"
   Method = "POST"
   Encoding = "application/x-www-form-urlencoded"
