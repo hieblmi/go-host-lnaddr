@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net"
 	"net/smtp"
+	"time"
 )
 
 type MailNotifier struct {
@@ -46,9 +47,10 @@ func (m *MailNotifier) Notify(amount uint64, comment string) (err error) {
 	if comment != "" {
 		comment = fmt.Sprintf("Sender said: \"%s\"", comment)
 	}
-	body := fmt.Sprintf("From: lnaddress payment\nSubject: %s\n\nYou've "+
+	body := fmt.Sprintf("Date: %s\nFrom: %s\nSubject: %s\n\nYou've "+
 		"received %d sats to your lightning address. %s",
-		m.From, amount, comment)
+		time.Now().Format(time.RFC1123Z), m.From, "lnaddress payment",
+		amount, comment)
 
 	err = smtp.SendMail(
 		m.Server, auth, m.From, []string{m.To}, []byte(body),
