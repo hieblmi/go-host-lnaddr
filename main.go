@@ -49,6 +49,7 @@ type ServerConfig struct {
 	AddressServerPort   int               `json:"AddressServerPort" toml:"AddressServerPort"`
 	Nostr               *NostrConfig      `json:"Nostr" toml:"Nostr"`
 	Notifiers           []notifier.Config `json:"Notifiers" toml:"Notifiers"`
+	Notificators        []notifier.Config `json:"Notificators" toml:"Notificators"`
 	Zaps                *ZapsConfig       `json:"Zaps" toml:"Zaps"`
 }
 
@@ -148,6 +149,10 @@ func main() {
 
 	setupHandlerPerAddress(config)
 	setupNostrHandlers(config.Nostr)
+	if config.Notificators != nil && config.Notifiers == nil {
+		config.Notifiers = config.Notificators
+		log.Warn("The option Notificators has been renamed to Notifiers, please update your config as the old name will be deprecated soon")
+	}
 	notifier.SetupNotifiers(config.Notifiers, log)
 	setupIndexHandler(config)
 
