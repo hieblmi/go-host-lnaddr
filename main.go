@@ -325,13 +325,15 @@ func setupIndexHandler(config ServerConfig) {
 }
 
 func metadataToString(config ServerConfig) (string, error) {
-	thumbnailMetadata, err := thumbnailToMetadata(config.Thumbnail)
-	if err != nil {
-		return "", err
-	}
+	if config.Thumbnail != "" {
+		thumbnailMetadata, err := thumbnailToMetadata(config.Thumbnail)
+		if err != nil {
+			return "", err
+		}
 
-	if thumbnailMetadata != nil {
-		config.Metadata = append(config.Metadata, thumbnailMetadata)
+		if thumbnailMetadata != nil {
+			config.Metadata = append(config.Metadata, thumbnailMetadata)
+		}
 	}
 
 	marshalledMetadata, err := json.Marshal(config.Metadata)
