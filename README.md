@@ -56,34 +56,34 @@ AddressServerPort = 9990
 Npub = "npub1..."
 Nsec = "nsec1..."
 
-[[Notificators]]
+[[Notifiers]]
 Type = "mail"
 MinAmount = 1000
-  [Notificators.Params]
+  [Notifiers.Params]
   From = "tips@sendmesats.com"
   Target = "username@example.com"
   SmtpServer = "smtp.sendmesats.com:587"
   Login = "tips@sendmesats.com"
   Password = "somerandompassword"
 
-[[Notificators]]
+[[Notifiers]]
 Type = "telegram"
 MinAmount = 1000
-  [Notificators.Params]
+  [Notifiers.Params]
   ChatId = "1234567890"
   Token = "TelegramToken"
 
-[[Notificators]]
+[[Notifiers]]
 Type = "http"
 MinAmount = 1000
-  [Notificators.Params]
+  [Notifiers.Params]
   Target = "https://sendmesats.com/notify?amount={{.Amount}}"
   Method = "POST"
   Encoding = "application/x-www-form-urlencoded"
   BodyTemplate = "message={{.Message}}&title=New+payment+received"
 ```
 
-Notes on Notificators:
+Notes on Notifiers:
 - mail: sends via SMTP using PlainAuth. Target is the recipient address; From/SmtpServer/Login/Password are required.
 - telegram: sends a message via Bot API. Provide ChatId and Token; MinAmount filters small payments.
 - http: templated URL/body with Encoding controlling Content-Type and escaping. GET ignores BodyTemplate; POST uses it as the request body.
