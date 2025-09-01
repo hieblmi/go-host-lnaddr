@@ -156,8 +156,8 @@ func main() {
 	if config.Notificators != nil && config.Notifiers == nil {
 		config.Notifiers = config.Notificators
 		log.Warn("The option Notificators has been renamed to " +
-		    "Notifiers, please update your config as the old " +
-		    "name will be deprecated soon")
+			"Notifiers, please update your config as the old " +
+			"name will be deprecated soon")
 	}
 	notifier.SetupNotifiers(config.Notifiers, log)
 	setupIndexHandler(config)
@@ -253,7 +253,7 @@ func setupNostrHandlers(nostr *NostrConfig) {
 
 func setupIndexHandler(config ServerConfig) {
 	if !config.ListAllURLs || len(config.LightningAddresses) == 0 ||
-	    config.ExternalURL == "" {
+		config.ExternalURL == "" {
 		return
 	}
 
@@ -368,7 +368,7 @@ func thumbnailToMetadata(thumbnailPath string) ([]string, error) {
 
 	default:
 		return nil, fmt.Errorf("unsupported encoding %s of "+
-		    "thumbnail %s", encoding, thumbnailPath)
+			"thumbnail %s", encoding, thumbnailPath)
 	}
 	encodedThumbnail := base64.StdEncoding.EncodeToString(fileBytes)
 
@@ -382,7 +382,7 @@ var (
 )
 
 func getClientConn(address, tlsCertPath, macaroonPath string) (*grpc.ClientConn,
-    error) {
+	error) {
 
 	// We always need to send a macaroon.
 	macOption, err := readMacaroon(macaroonPath)
@@ -438,7 +438,7 @@ func readMacaroon(macPath string) (grpc.DialOption, error) {
 
 func isZapsConfigured(config ServerConfig) bool {
 	return config.Zaps != nil && config.Zaps.Npub != "" &&
-	    config.Zaps.Nsec != ""
+		config.Zaps.Nsec != ""
 }
 
 // loadConfig reads and unmarshals a JSON or TOML config into ServerConfig.
@@ -446,7 +446,7 @@ func loadConfig(path string) (ServerConfig, error) {
 	configBytes, err := os.ReadFile(path)
 	if err != nil {
 		return ServerConfig{}, fmt.Errorf("cannot read config file "+
-		    "'%s': %w", path, err)
+			"'%s': %w", path, err)
 	}
 
 	config := ServerConfig{}
@@ -455,17 +455,17 @@ func loadConfig(path string) (ServerConfig, error) {
 	case ".toml", ".tml":
 		if err := toml.Unmarshal(configBytes, &config); err != nil {
 			return ServerConfig{}, fmt.Errorf("cannot decode "+
-			    "config TOML: %w", err)
+				"config TOML: %w", err)
 		}
 
 	case ".json":
 		if err := json.Unmarshal(configBytes, &config); err != nil {
 			return ServerConfig{}, fmt.Errorf("cannot decode "+
-			    "config JSON: %w", err)
+				"config JSON: %w", err)
 		}
 	default:
 		return ServerConfig{}, fmt.Errorf("unknown config file "+
-		    "extension '%s'", ext)
+			"extension '%s'", ext)
 	}
 
 	return config, nil
@@ -487,17 +487,17 @@ func prepareZaps(z *ZapsConfig) error {
 	pk, err := nostr.GetPublicKey(sk.(string))
 	if err != nil {
 		return fmt.Errorf("can't get public nostr zap key from "+
-		    "private key: %w", err)
+			"private key: %w", err)
 	}
 	npub, err := nip19.EncodePublicKey(pk)
 	if err != nil {
 		return fmt.Errorf("error encoding public nostr zap "+
-		    "key: %w", err)
+			"key: %w", err)
 	}
 	if npub != z.Npub {
 		return fmt.Errorf("public nostr zap key in config is %s "+
-		    "doesn't match the expected key %s, make sure you "+
-		    "entered the correct key pair", z.Npub, npub)
+			"doesn't match the expected key %s, make sure you "+
+			"entered the correct key pair", z.Npub, npub)
 	}
 
 	// save keys hex-encoded

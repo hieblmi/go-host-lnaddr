@@ -1,54 +1,35 @@
 package main
 
 import (
-	"io"
 	"sync"
 
-	"github.com/btcsuite/btclog"
+	btclogv1 "github.com/btcsuite/btclog"
+	btclogv2 "github.com/btcsuite/btclog/v2"
 	"github.com/lightningnetwork/lnd/build"
 )
 
 var (
 	initBackend sync.Once
-	logWriter   *build.RotatingLogWriter
+	subLogMgr   *build.SubLoggerManager
 	initError   error
 )
 
 /*
-Writer is the implementatino of io.Writer interface required for logging
-*/
-type Writer struct {
-	writer io.Writer
-}
-
-func (w *Writer) Write(b []byte) (int, error) {
-	if w.writer != nil {
-		_, err := w.writer.Write(b)
-		if err != nil {
-			return 0, err
-		}
-	}
-	return len(b), nil
-}
-
-/*
 GetLogger ensure log backend is initialized and return a logger.
 */
-func GetLogger(workingDir string, logger string) (btclog.Logger, error) {
+func GetLogger(workingDir string, logger string) (btclogv1.Logger, error) {
 	initLog(workingDir)
 	if initError != nil {
 		return nil, initError
 	}
-	return logWriter.GenSubLogger(logger, func() {}), nil
-}
 
-/*
-GetLogWriter ensure log backend is initialized and return the writer singleton.
-This writer is sent to other systems to they can use the same log file.
-*/
-func GetLogWriter(workingDir string) (*build.RotatingLogWriter, error) {
-	initLog(workingDir)
-	return logWriter, initError
+	gen := func(tag string) btclogv2.Logger {
+		if subLogMgr == nil {
+			return btclogv2.Disabled
+		}
+		return subLogMgr.GenSubLogger(tag, func() {})
+	}
+	return build.NewSubLogger(logger, gen), nil
 }
 
 func initLog(workingDir string) {
@@ -56,11 +37,21 @@ func initLog(workingDir string) {
 		buildLogWriter := build.NewRotatingLogWriter()
 
 		filename := workingDir + "/logs/lnaddr.log"
-		err := buildLogWriter.InitLogRotator(filename, 10, 3)
+		cfg := &build.FileLoggerConfig{
+			MaxLogFiles:    3,
+			MaxLogFileSize: 10,
+			Compressor:     "gzip",
+		}
+		err := buildLogWriter.InitLogRotator(cfg, filename)
 		if err != nil {
 			initError = err
 			return
 		}
-		logWriter = buildLogWriter
+
+		// Set up the root sub-logger manager using default handlers
+		// that write to both the console and the rotating file.
+		logCfg := build.DefaultLogConfig()
+		handlers := build.NewDefaultLogHandlers(logCfg, buildLogWriter)
+		subLogMgr = build.NewSubLoggerManager(handlers...)
 	})
 }
