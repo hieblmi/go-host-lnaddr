@@ -28,7 +28,7 @@ type mockLightningClient struct {
 }
 
 func (f *mockLightningClient) AddInvoice(_ context.Context, in *lnrpc.Invoice,
-	_ ...grpc.CallOption) (*lnrpc.AddInvoiceResponse, error) {
+    _ ...grpc.CallOption) (*lnrpc.AddInvoiceResponse, error) {
 
 	f.lastInvoice = in
 	return &lnrpc.AddInvoiceResponse{
@@ -40,8 +40,8 @@ func (f *mockLightningClient) AddInvoice(_ context.Context, in *lnrpc.Invoice,
 // Implement SubscribeInvoices with a no-op stream for this test. We don't need
 // to exercise settlement publishing to validate request processing per spec.
 func (f *mockLightningClient) SubscribeInvoices(_ context.Context,
-	_ *lnrpc.InvoiceSubscription, _ ...grpc.CallOption) (
-	lnrpc.Lightning_SubscribeInvoicesClient, error) {
+    _ *lnrpc.InvoiceSubscription, _ ...grpc.CallOption) (
+    lnrpc.Lightning_SubscribeInvoicesClient, error) {
 
 	return &noopInvoiceStream{}, nil
 }
@@ -107,8 +107,7 @@ func TestInvoiceCreationWithZapRequest_FollowsSpecBasics(t *testing.T) {
 		MaxCommentLength: 150,
 		SuccessMessage:   "ok",
 	}
-	baseMetadata := "[[\"text/plain\",\"hello\"]]" // should be ignored when nostr present
-	mux.HandleFunc("/invoice/", mgr.HandleInvoiceCreation(cfg, baseMetadata))
+	mux.HandleFunc("/invoice/", mgr.HandleInvoiceCreation(cfg))
 	ts := httptest.NewServer(mux)
 	defer ts.Close()
 
@@ -158,7 +157,8 @@ func TestInvoiceCreationWithZapRequest_FollowsSpecBasics(t *testing.T) {
 	// And that DescriptionHash is SHA256(description)
 	h := sha256.Sum256([]byte(zapJSON))
 	if !bytes.Equal(fl.lastInvoice.DescriptionHash, h[:]) {
-		t.Fatalf("description hash mismatch: got %x want %x", fl.lastInvoice.DescriptionHash, h[:])
+		t.Fatalf("description hash mismatch: got %x want %x",
+			fl.lastInvoice.DescriptionHash, h[:])
 	}
 }
 
@@ -172,7 +172,7 @@ func TestInvoiceCreationWithZapRequest_AmountMismatchIs400(t *testing.T) {
 
 	mux := http.NewServeMux()
 	cfg := Config{MinSendableMsat: 1, MaxSendableMsat: 100000000}
-	mux.HandleFunc("/invoice/", mgr.HandleInvoiceCreation(cfg, "[]"))
+	mux.HandleFunc("/invoice/", mgr.HandleInvoiceCreation(cfg))
 	ts := httptest.NewServer(mux)
 	defer ts.Close()
 
