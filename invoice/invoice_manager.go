@@ -179,9 +179,7 @@ func (m *Manager) processZapRequest(zapRequest []string,
 	}
 }
 
-func (m *Manager) HandleInvoiceCreation(
-	config Config, baseMetadata string) http.HandlerFunc {
-
+func (m *Manager) HandleInvoiceCreation(config Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.Header().Set("Access-Control-Allow-Origin", "*")
@@ -221,7 +219,7 @@ func (m *Manager) HandleInvoiceCreation(
 			return
 		}
 
-		metadata := baseMetadata
+		metadata := comment
 		zapRequest, hasNostr := r.URL.Query()["nostr"]
 		var zapReceipt *zapReceipt
 		if hasNostr && len(zapRequest) > 0 {
