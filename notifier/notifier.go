@@ -38,6 +38,11 @@ func SetupNotifiers(notifierConfigs []Config, logger btclog.Logger) {
 				notifiers, NewTelegramNotifier(c),
 			)
 
+		case "signal":
+			notifiers = append(
+				notifiers, NewSignalNotifier(c),
+			)
+
 		default:
 			log.Infof("Unknown notifier type: %s", c.Type)
 		}

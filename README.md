@@ -11,12 +11,31 @@ Lightning wallets like [Zeus](https://github.com/ZeusLN/zeus), [Blixt](https://b
 ## Features
 - Implements the Lightning Address (LNURLp) flow to receive Lightning payments to an email-like address.
 - Host multiple Lightning Addresses on the same server instance.
-- Flexible notifications on payment receipt via email, Telegram, and HTTP (extensible).
+- Flexible notifications on payment receipt via email, Telegram, HTTP and Signal (extensible).
 - Nostr NIP-05 style account verification: https://github.com/nostr-protocol/nips/blob/master/05.md
 - Nostr NIP-57 zaps support (optional).
 
 ## Install and Setup
 ### Clone & Build
+
+You can use the Makefile or the Go toolchain directly.
+
+Using the Makefile:
+
+```bash
+# Build the project (produces a local binary in the repo directory)
+make
+
+# Install the lnaddr binary into $GOBIN (GOBIN must be set)
+make install
+# This places the executable at: $GOBIN/lnaddr
+
+# Run tests
+make test
+```
+
+Alternatively, using the Go toolchain directly:
+
 ```
 go install github.com/hieblmi/go-host-lnaddr@latest
 ```
@@ -81,23 +100,38 @@ MinAmount = 1000
   Method = "POST"
   Encoding = "application/x-www-form-urlencoded"
   BodyTemplate = "message={{.Message}}&title=New+payment+received"
+
+[[Notifiers]]
+Type = "signal"
+MinAmount = 1000
+  [Notifiers.Params]
+  FromPhoneNumber = "+12345678901"
+  ToPhoneNumber = "+46912345678"
 ```
 
-Notes on Notifiers:
+#### Notes on Notifiers:
 - mail: sends via SMTP using PlainAuth. Target is the recipient address; From/SmtpServer/Login/Password are required.
 - telegram: sends a message via Bot API. Provide ChatId and Token; MinAmount filters small payments.
 - http: templated URL/body with Encoding controlling Content-Type and escaping. GET ignores BodyTemplate; POST uses it as the request body.
+- signal: sends a message via `signal-cli`. Provide FromPhoneNumber and ToPhoneNumber.
 
-Reverse proxy tip (example Nginx): proxy requests for
+#### Signal Notifier Setup
+1. (optional) If you need a new phone number for a separate Signal instance, checkout https://silent.link/.
+2. Install signal-cli from https://github.com/AsamK/signal-cli
+3. Follow the registration instructions https://github.com/AsamK/signal-cli?tab=readme-ov-file#usage
+4. Assign the registered number to `FromPhoneNumber` in your `.toml` config.
+5. Assign the receiver Signal number to `ToPhoneNumber` in your `.toml` config.
+
+#### Reverse proxy tip (example Nginx): proxy requests for
 /.well-known/lnurlp/* and /invoice/* to http://127.0.0.1:9990 while serving your domain over HTTPS.
 
 ### Run
 ```bash
-$GOBIN/go-host-lnaddr --config /path/to/config.toml
+$GOBIN/lnaddr --config /path/to/config.toml
 ```
 
 You can also run the binary you built via `go install` directly from your Go bin directory. Sample configurations are provided (sample-config.toml, dev-config.toml). JSON configuration files are also supported if you prefer using .json instead of .toml. If using Docker, mount your configuration file and TLS/macaroon files as needed.
 
 ## Notes
-This project is experimental. Feedback is welcome — please open an issue if you have questions or suggestions.
+This project is experimental. Feedback is welcome — please open an issue if you have questions or suggestions, or open a PR yourself if you'd like to contribute.
 
