@@ -196,3 +196,65 @@ func TestInvoiceCreationWithZapRequest_AmountMismatchIs400(t *testing.T) {
 		t.Fatalf("expected 400, got %d: %s", resp.StatusCode, string(b))
 	}
 }
+
+// TestInvoiceCreationCommitsToMetadata checks the LUD-06 requirement that a
+// payRequest invoice's description hash is sha256 over the metadata string the
+// server advertised. A payer's comment must not change it, and an absent
+// comment must not leave it hashing the empty string.
+func TestInvoiceCreationCommitsToMetadata(t *testing.T) {
+	metadata := `[["text/plain","Sats please"],` +
+		`["text/identifier","alice@example.com"]]`
+	want := sha256.Sum256([]byte(metadata))
+
+	for _, tc := range []struct {
+		name    string
+		comment string
+	}{
+		{name: "no comment"},
+		{name: "with comment", comment: "thanks!"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			fl := &mockLightningClient{}
+			sh := NewSettlementHandler(fl, "")
+			mgr := NewInvoiceManager(&ManagerConfig{
+				LndClient: fl, SettlementHandler: sh,
+			})
+
+			mux := http.NewServeMux()
+			mux.HandleFunc("/invoice/", mgr.HandleInvoiceCreation(
+				Config{
+					MinSendableMsat:  1000,
+					MaxSendableMsat:  2_000_000,
+					MaxCommentLength: 150,
+					SuccessMessage:   "ok",
+					Metadata:         metadata,
+				},
+			))
+			ts := httptest.NewServer(mux)
+			defer ts.Close()
+
+			u, _ := url.Parse(ts.URL + "/invoice/")
+			q := u.Query()
+			q.Set("amount", "21000")
+			if tc.comment != "" {
+				q.Set("comment", tc.comment)
+			}
+			u.RawQuery = q.Encode()
+
+			resp, err := http.Get(u.String())
+			if err != nil {
+				t.Fatalf("GET invoice: %v", err)
+			}
+			defer resp.Body.Close()
+
+			if fl.lastInvoice == nil {
+				t.Fatalf("AddInvoice was not called")
+			}
+			if !bytes.Equal(fl.lastInvoice.DescriptionHash, want[:]) {
+				t.Fatalf("description hash does not commit to "+
+					"the metadata:\n got %x\nwant %x",
+					fl.lastInvoice.DescriptionHash, want[:])
+			}
+		})
+	}
+}

@@ -27,6 +27,10 @@ type Config struct {
 	MaxSendableMsat  int
 	MaxCommentLength int
 	SuccessMessage   string
+
+	// Metadata is the LUD-06 metadata string. The invoice's description
+	// hash must commit to it, or a verifying wallet rejects the payment.
+	Metadata string
 }
 
 // Invoice is the JSON response for a created invoice.
@@ -219,7 +223,7 @@ func (m *Manager) HandleInvoiceCreation(config Config) http.HandlerFunc {
 			return
 		}
 
-		metadata := comment
+		metadata := config.Metadata
 		zapRequest, hasNostr := r.URL.Query()["nostr"]
 		var zapReceipt *zapReceipt
 		if hasNostr && len(zapRequest) > 0 {
