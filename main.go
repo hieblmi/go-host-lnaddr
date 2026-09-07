@@ -163,6 +163,7 @@ func main() {
 	setupIndexHandler(config)
 
 	// Precompute base metadata string once.
+	invoiceMetadata, err := metadataToString(config)
 	if err != nil {
 		log.Warnf("Unable to convert metadata to string: %v", err)
 	}
@@ -171,6 +172,7 @@ func main() {
 		MaxSendableMsat:  config.MaxSendableMsat,
 		MaxCommentLength: config.MaxCommentLength,
 		SuccessMessage:   config.SuccessMessage,
+		Metadata:         invoiceMetadata,
 	}
 	http.HandleFunc("/invoice/", useLogger(
 		invoiceManager.HandleInvoiceCreation(payCfg),
